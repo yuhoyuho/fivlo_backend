@@ -2,14 +2,18 @@ package com.fivlo.fivlo_backend.domain.user.service;
 
 import com.fivlo.fivlo_backend.domain.user.dto.JoinUserRequest;
 import com.fivlo.fivlo_backend.domain.user.dto.JoinUserResponse;
+import com.fivlo.fivlo_backend.domain.user.dto.OnboardingUpdateRequest;
 import com.fivlo.fivlo_backend.domain.user.entity.User;
 import com.fivlo.fivlo_backend.domain.user.repository.UserRepository;
 import com.fivlo.fivlo_backend.security.JwtTokenProvider;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -49,5 +53,18 @@ public class UserService {
         String token = jwtTokenProvider.generateToken(savedUser.getEmail());
 
         return new JoinUserResponse(token, savedUser.getId(), savedUser.getOnboardingType());
+    }
+
+    @Transactional
+    public User.OnboardingType updateOnboardingType(String email, User.OnboardingType onboardingType) {
+
+        // 이메일로 사용자 조회
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new NoSuchElementException("사용자를 찾을 수 없습니다. Email : " + email));
+
+        // DB에 업데이트, 더티체킹으로 자동 저장
+        user.updateOnboardingType(onboardingType);
+
+        return user.getOnboardingType();
     }
 }
