@@ -30,7 +30,7 @@ public class LoginSuccessHandler implements AuthenticationSuccessHandler {
         User user = userDetails.getUser();
 
         // jwt 토큰 생성
-        String token = jwtTokenProvider.generateToken(user.getEmail());
+        String token = jwtTokenProvider.generateToken(user.getId());
 
         // 응답 dto 생성
         LoginResponse dto = new LoginResponse(token, user.getId(), user.getOnboardingType(), user.getIsPremium());

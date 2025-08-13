@@ -27,18 +27,18 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     /**
      * 사용자명(이메일)으로 사용자 정보 로드
-     * @param username 사용자 이메일
+     * @param email 사용자 이메일
      * @return UserDetails 구현체
      * @throws UsernameNotFoundException 사용자를 찾을 수 없을 때
      */
     @Override
-    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        logger.debug("Loading user by email: {}", username);
+    public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
+        logger.debug("Loading user by email: {}", email);
 
-        Optional<User> userOptional = userRepository.findByEmail(username);
+        Optional<User> userOptional = userRepository.findByEmail(email);
         if (userOptional.isEmpty()) {
-            logger.warn("User not found with email: {}", username);
-            throw new UsernameNotFoundException("User not found with email: " + username);
+            logger.warn("User not found with email: {}", email);
+            throw new UsernameNotFoundException("User not found with email: " + email);
         }
         
         User user = userOptional.get();
@@ -66,15 +66,7 @@ public class CustomUserDetailsService implements UserDetailsService {
         User user = userOptional.get();
         logger.debug("User found by ID: Email={}, Premium={}", user.getEmail(), user.getIsPremium());
         
-        return org.springframework.security.core.userdetails.User.builder()
-                .username(String.valueOf(user.getId()))
-                .password(user.getPassword() != null ? user.getPassword() : "")
-                .authorities("ROLE_USER")
-                .accountExpired(false)
-                .accountLocked(false)
-                .credentialsExpired(false)
-                .disabled(false)
-                .build();
+        return new CustomUserDetails(user);
     }
 
     /**

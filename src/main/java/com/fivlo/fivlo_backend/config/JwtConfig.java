@@ -37,16 +37,6 @@ public class JwtConfig {
     }
 
     /**
-     * 비밀번호 암호화를 위한 PasswordEncoder Bean
-     * BCrypt 알고리즘 사용으로 안전한 비밀번호 해싱
-     * @return BCryptPasswordEncoder 인스턴스
-     */
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
-
-    /**
      * JWT 토큰 만료시간을 초 단위로 반환
      * @return JWT 토큰 만료시간 (초)
      */

@@ -32,12 +32,12 @@ public class JwtTokenProvider {
     }
 
     /** 사용자 ID로 JWT 토큰 생성 */
-    public String generateToken(String email) {
+    public String generateToken(Long userId) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + jwtConfig.getJwtExpiration());
 
         return Jwts.builder()
-                .subject(email)
+                .subject(String.valueOf(userId))
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .signWith(getSigningKey(), Jwts.SIG.HS256) // 0.12 스타일
@@ -47,7 +47,7 @@ public class JwtTokenProvider {
     /** Authentication으로 JWT 토큰 생성 */
     public String generateToken(Authentication authentication) {
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
-        return generateToken(userDetails.getUsername());
+        return generateToken(userDetails.getUser().getId());
     }
 
     /** 토큰에서 사용자 ID 추출 */
@@ -56,6 +56,14 @@ public class JwtTokenProvider {
                 .parseSignedClaims(token)
                 .getPayload();
         return Long.valueOf(claims.getSubject());
+    }
+
+    /** 토큰에서 이메일 추출 */
+    public String getUserEmailFromToken(String token) {
+        Claims claims = getParser()
+                .parseSignedClaims(token)
+                .getPayload();
+        return claims.getSubject();
     }
 
     /** 토큰에서 만료일 추출 */

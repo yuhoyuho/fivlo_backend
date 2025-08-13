@@ -12,7 +12,6 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping(Routes.API_BASE)
 @RequiredArgsConstructor
 public class UserController {
 
@@ -32,16 +31,14 @@ public class UserController {
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @Valid @RequestBody OnboardingUpdateRequest dto) {
 
-        String email = userDetails.getUsername();
-        return ResponseEntity.status(200).body(userService.updateOnboardingType(email, dto.onboardingType()));
+        return ResponseEntity.status(200).body(userService.updateOnboardingType(userDetails.getUser().getId(), dto.onboardingType()));
     }
 
     // 사용자 프로필 정보 조회
     @GetMapping(Routes.USERS_ME)
     public ResponseEntity<UserInfoResponse> userInfo(@AuthenticationPrincipal CustomUserDetails userDetails) {
 
-        String email = userDetails.getUsername();
-        return ResponseEntity.status(200).body(userService.getUserInfo(email));
+        return ResponseEntity.status(200).body(userService.getUserInfo(userDetails));
     }
 
     // 사용자 프로필 정보 수정
@@ -50,8 +47,7 @@ public class UserController {
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @Valid @RequestBody UpdateUserRequest dto) {
 
-        String email = userDetails.getUsername();
-        String message = userService.updateUserInfo(email, dto);
+        String message = userService.updateUserInfo(userDetails, dto);
         return ResponseEntity.status(200).body(message);
     }
 }

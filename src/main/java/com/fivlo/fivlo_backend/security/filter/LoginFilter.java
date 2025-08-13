@@ -48,7 +48,7 @@ public class LoginFilter extends AbstractAuthenticationProcessingFilter {
 
     @Override
     public Authentication attemptAuthentication(HttpServletRequest request, HttpServletResponse response) {
-        if(!request.getMethod().equals(HttpMethod.POST)) {
+        if(!request.getMethod().equals(HttpMethod.POST.name())) {
             throw new AuthenticationServiceException("올바르지 않은 요청입니다. 현재 요청 방식 : " + request.getMethod());
         }
 
