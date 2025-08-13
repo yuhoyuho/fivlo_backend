@@ -2,13 +2,12 @@ package com.fivlo.fivlo_backend.domain.user.service;
 
 import com.fivlo.fivlo_backend.domain.user.dto.JoinUserRequest;
 import com.fivlo.fivlo_backend.domain.user.dto.JoinUserResponse;
-import com.fivlo.fivlo_backend.domain.user.dto.OnboardingUpdateRequest;
+import com.fivlo.fivlo_backend.domain.user.dto.UpdateUserRequest;
+import com.fivlo.fivlo_backend.domain.user.dto.UserInfoResponse;
 import com.fivlo.fivlo_backend.domain.user.entity.User;
 import com.fivlo.fivlo_backend.domain.user.repository.UserRepository;
 import com.fivlo.fivlo_backend.security.JwtTokenProvider;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +24,11 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
 
+    /**
+     * 이메일 회원가입 로직
+     * @param dto
+     * @return
+     */
     @Transactional
     public JoinUserResponse join(JoinUserRequest dto) {
 
@@ -55,6 +59,12 @@ public class UserService {
         return new JoinUserResponse(token, savedUser.getId(), savedUser.getOnboardingType());
     }
 
+    /**
+     * 온보딩 생성/수정 로직
+     * @param email
+     * @param onboardingType
+     * @return
+     */
     @Transactional
     public User.OnboardingType updateOnboardingType(String email, User.OnboardingType onboardingType) {
 
@@ -66,5 +76,25 @@ public class UserService {
         user.updateOnboardingType(onboardingType);
 
         return user.getOnboardingType();
+    }
+
+    @Transactional(readOnly = true)
+    public UserInfoResponse getUserInfo(String email) {
+
+        // 이메일로 사용자 조회
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new NoSuchElementException("사용자를 찾을 수 없습니다. Email : " + email));
+
+        return new UserInfoResponse(user.getId(), user.getNickname(), user.getProfileImageUrl(), user.getOnboardingType(), user.getIsPremium(), user.getTotalCoins());
+    }
+
+    @Transactional
+    public String updateUserInfo(String email, UpdateUserRequest dto) {
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new NoSuchElementException("사용자를 찾을 수 없습니다. Email : " + email));
+
+        user.updateProfile(dto.nickname(), dto.profileImageUrl());
+        return "프로필 정보가 성공적으로 수정되었습니다.";
     }
 }
