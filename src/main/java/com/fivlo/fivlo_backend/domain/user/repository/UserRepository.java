@@ -58,8 +58,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
      * @param date 확인할 날짜
      * @return 해당 조건의 사용자 목록
      */
-    @Query("SELECT u FROM User u WHERE u.isPremium = true AND (u.lastPomodorooCoinDate IS NULL OR u.lastPomodorooCoinDate < :date)")
-    java.util.List<User> findPremiumUsersWithoutPomodorooCoinOnDate(@Param("date") LocalDate date);
+    @Query("SELECT u FROM User u WHERE u.isPremium = true AND (u.lastPomodoroCoinDate IS NULL OR u.lastPomodoroCoinDate < :date)")
+    java.util.List<User> findPremiumUsersWithoutPomodoroCoinOnDate(@Param("date") LocalDate date);
 
     /**
      * 총 코인이 특정 금액 이상인 사용자 조회
