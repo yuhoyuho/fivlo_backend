@@ -43,16 +43,9 @@ public class CustomUserDetailsService implements UserDetailsService {
         
         User user = userOptional.get();
         logger.debug("User found: ID={}, Email={}, Premium={}", user.getId(), user.getEmail(), user.getIsPremium());
-        
-        return org.springframework.security.core.userdetails.User.builder()
-                .username(String.valueOf(user.getId())) // JWT에서는 사용자 ID를 사용
-                .password(user.getPassword() != null ? user.getPassword() : "") // 소셜 로그인 사용자는 비밀번호 없음
-                .authorities("ROLE_USER") // 기본 권한
-                .accountExpired(false)
-                .accountLocked(false)
-                .credentialsExpired(false)
-                .disabled(false)
-                .build();
+
+        // User 엔티티로 CustomUserDetails 객체를 생성하여 반환
+        return new CustomUserDetails(user);
     }
 
     /**

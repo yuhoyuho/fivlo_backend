@@ -1,15 +1,24 @@
 package com.fivlo.fivlo_backend.config;
 
+import com.fivlo.fivlo_backend.security.JwtTokenProvider;
+import com.fivlo.fivlo_backend.security.LoginSuccessHandler;
 import com.fivlo.fivlo_backend.security.OAuth2SuccessHandler;
+import com.fivlo.fivlo_backend.security.filter.JwtFilter;
+import com.fivlo.fivlo_backend.security.filter.LoginFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.authentication.logout.LogoutFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -22,6 +31,14 @@ import java.util.Arrays;
 public class SecurityConfig {
 
     private final OAuth2SuccessHandler oAuth2SuccessHandler;
+    private final JwtTokenProvider jwtTokenProvider;
+    private final AuthenticationConfiguration configuration;
+    private final LoginSuccessHandler loginSuccessHandler;
+
+    @Bean
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
+        return configuration.getAuthenticationManager();
+    }
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -56,6 +73,12 @@ public class SecurityConfig {
                 .successHandler(oAuth2SuccessHandler)
                 .failureUrl("/login?error=true")
             );
+
+        // 커스텀 필터 등록
+        http.addFilterBefore(new JwtFilter(jwtTokenProvider), LogoutFilter.class);
+
+        http.addFilterBefore(new LoginFilter(authenticationManager(configuration), loginSuccessHandler), UsernamePasswordAuthenticationFilter.class);
+
 
         return http.build();
     }

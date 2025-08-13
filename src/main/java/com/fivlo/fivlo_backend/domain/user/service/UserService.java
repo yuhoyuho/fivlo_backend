@@ -46,7 +46,7 @@ public class UserService {
         User savedUser = userRepository.save(user);
 
         // jwt 발급
-        String token = jwtTokenProvider.generateToken(savedUser.getId());
+        String token = jwtTokenProvider.generateToken(savedUser.getEmail());
 
         return new JoinUserResponse(token, savedUser.getId(), savedUser.getOnboardingType());
     }

@@ -7,7 +7,6 @@ import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
@@ -33,12 +32,12 @@ public class JwtTokenProvider {
     }
 
     /** 사용자 ID로 JWT 토큰 생성 */
-    public String generateToken(Long userId) {
+    public String generateToken(String email) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + jwtConfig.getJwtExpiration());
 
         return Jwts.builder()
-                .subject(String.valueOf(userId))
+                .subject(email)
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .signWith(getSigningKey(), Jwts.SIG.HS256) // 0.12 스타일
@@ -47,8 +46,8 @@ public class JwtTokenProvider {
 
     /** Authentication으로 JWT 토큰 생성 */
     public String generateToken(Authentication authentication) {
-        UserDetails userPrincipal = (UserDetails) authentication.getPrincipal();
-        return generateToken(Long.valueOf(userPrincipal.getUsername()));
+        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+        return generateToken(userDetails.getUsername());
     }
 
     /** 토큰에서 사용자 ID 추출 */
