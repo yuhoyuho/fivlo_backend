@@ -70,7 +70,7 @@ public class UserService {
     @Transactional
     public User.OnboardingType updateOnboardingType(Long id, User.OnboardingType onboardingType) {
 
-        // 이메일로 사용자 조회
+        // 아이디로 사용자 조회
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("사용자를 찾을 수 없습니다. ID : " + id));
 

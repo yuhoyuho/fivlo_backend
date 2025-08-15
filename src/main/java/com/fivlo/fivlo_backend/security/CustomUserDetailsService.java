@@ -68,21 +68,4 @@ public class CustomUserDetailsService implements UserDetailsService {
         
         return new CustomUserDetails(user);
     }
-
-    /**
-     * User 엔티티로 UserDetails 생성 (내부 유틸리티 메서드)
-     * @param user User 엔티티
-     * @return UserDetails 구현체
-     */
-    private UserDetails createUserDetails(User user) {
-        return org.springframework.security.core.userdetails.User.builder()
-                .username(String.valueOf(user.getId()))
-                .password(user.getPassword() != null ? user.getPassword() : "")
-                .authorities("ROLE_USER")
-                .accountExpired(false)
-                .accountLocked(false)
-                .credentialsExpired(false)
-                .disabled(false)
-                .build();
-    }
 }
