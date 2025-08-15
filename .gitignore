@@ -8,6 +8,12 @@ build/
 ### env ###
 /src/main/resources/env.properties
 
+### macOs ###
+.DS_Store
+
+### env ###
+/src/main/resources/env.properties
+
 ### STS ###
 .apt_generated
 .classpath

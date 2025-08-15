@@ -1,14 +1,25 @@
 package com.fivlo.fivlo_backend.config;
 
+import com.fivlo.fivlo_backend.security.CustomUserDetailsService;
+import com.fivlo.fivlo_backend.security.JwtTokenProvider;
+import com.fivlo.fivlo_backend.security.LoginSuccessHandler;
 import com.fivlo.fivlo_backend.security.OAuth2SuccessHandler;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.fivlo.fivlo_backend.security.filter.JwtFilter;
+import com.fivlo.fivlo_backend.security.filter.LoginFilter;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.authentication.logout.LogoutFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -17,10 +28,24 @@ import java.util.Arrays;
 
 @Configuration
 @EnableWebSecurity
+@RequiredArgsConstructor
 public class SecurityConfig {
 
-    @Autowired
-    private OAuth2SuccessHandler oAuth2SuccessHandler;
+    private final OAuth2SuccessHandler oAuth2SuccessHandler;
+    private final JwtTokenProvider jwtTokenProvider;
+    private final AuthenticationConfiguration configuration;
+    private final LoginSuccessHandler loginSuccessHandler;
+    private final CustomUserDetailsService customUserDetailsService;
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+
+    @Bean
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
+        return configuration.getAuthenticationManager();
+    }
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -48,13 +73,23 @@ public class SecurityConfig {
                 
                 // 나머지 모든 요청은 인증 필요
                 .anyRequest().authenticated()
-            )
-            
-            // OAuth2 로그인 설정
-            .oauth2Login(oauth2 -> oauth2
-                .successHandler(oAuth2SuccessHandler)
-                .failureUrl("/login?error=true")
             );
+            
+//            // OAuth2 로그인 설정
+//            .oauth2Login(oauth2 -> oauth2
+//                .successHandler(oAuth2SuccessHandler)
+//                .failureUrl("/login?error=true")
+//            );
+
+        http.formLogin(auth -> auth.disable());
+        http.httpBasic(auth -> auth.disable());
+
+
+        // 커스텀 필터 등록
+        http.addFilterBefore(new JwtFilter(jwtTokenProvider, customUserDetailsService), LogoutFilter.class);
+
+        http.addFilterAt(new LoginFilter(authenticationManager(configuration), loginSuccessHandler), UsernamePasswordAuthenticationFilter.class);
+
 
         return http.build();
     }
