@@ -3,19 +3,33 @@ package com.fivlo.fivlo_backend.domain.user.controller;
 import com.fivlo.fivlo_backend.common.Routes;
 import com.fivlo.fivlo_backend.domain.user.dto.*;
 import com.fivlo.fivlo_backend.domain.user.entity.User;
+import com.fivlo.fivlo_backend.domain.user.repository.UserRepository;
 import com.fivlo.fivlo_backend.domain.user.service.UserService;
 import com.fivlo.fivlo_backend.security.CustomUserDetails;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.apache.coyote.Response;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
 public class UserController {
 
     private final UserService userService;
+    private final UserRepository userRepository;
+
+    // 소셜 로그인
+    @PostMapping(Routes.AUTH_SOCIAL_LOGIN)
+    public ResponseEntity<SocialLoginResponse> socialLogin(
+            @Valid @RequestBody SocialLoginRequest dto) {
+
+        return ResponseEntity.status(200).body(userService.socialLogin(dto));
+    }
+
 
     // 이메일 회원가입
     @PostMapping(Routes.AUTH_SIGNUP)

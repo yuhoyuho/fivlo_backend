@@ -1,19 +1,21 @@
 package com.fivlo.fivlo_backend.domain.user.service;
 
-import com.fivlo.fivlo_backend.domain.user.dto.JoinUserRequest;
-import com.fivlo.fivlo_backend.domain.user.dto.JoinUserResponse;
-import com.fivlo.fivlo_backend.domain.user.dto.UpdateUserRequest;
-import com.fivlo.fivlo_backend.domain.user.dto.UserInfoResponse;
+import com.fivlo.fivlo_backend.domain.user.dto.*;
 import com.fivlo.fivlo_backend.domain.user.entity.User;
 import com.fivlo.fivlo_backend.domain.user.repository.UserRepository;
 import com.fivlo.fivlo_backend.security.CustomUserDetails;
 import com.fivlo.fivlo_backend.security.JwtTokenProvider;
+import com.fivlo.fivlo_backend.security.oauth2.OAuth2TokenVerifier;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.*;
+import java.util.List;
+import java.util.NoSuchElementException;
+import java.util.Optional;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -22,6 +24,7 @@ public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
+    private final List<OAuth2TokenVerifier> tokenVerifiers;
 
     /**
      * 이메일 회원가입 로직
@@ -77,6 +80,11 @@ public class UserService {
         return user.getOnboardingType();
     }
 
+    /**
+     * 사용자 정보 조회 로직
+     * @param userDetails
+     * @return
+     */
     @Transactional(readOnly = true)
     public UserInfoResponse getUserInfo(CustomUserDetails userDetails) {
 
@@ -87,6 +95,12 @@ public class UserService {
         return new UserInfoResponse(user.getId(), user.getNickname(), user.getProfileImageUrl(), user.getOnboardingType(), user.getIsPremium(), user.getTotalCoins());
     }
 
+    /**
+     * 사용자 정보 수정 로직
+     * @param userDetails
+     * @param dto
+     * @return
+     */
     @Transactional
     public String updateUserInfo(CustomUserDetails userDetails, UpdateUserRequest dto) {
 
@@ -95,5 +109,31 @@ public class UserService {
 
         user.updateProfile(dto.nickname(), dto.profileImageUrl());
         return "프로필 정보가 성공적으로 수정되었습니다.";
+    }
+
+    /**
+     * 소셜 로그인 처리 로직
+     * @param dto
+     * @return
+     */
+    @Transactional
+    public SocialLoginResponse socialLogin(@Valid SocialLoginRequest dto) {
+
+        // 소셜 로그인 제공자에 맞는 토큰 검증 방식 찾기
+        OAuth2TokenVerifier verifier = tokenVerifiers.stream()
+                .filter(v -> v.supports(dto.provider()))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("지원하지 않는 로그인 방식입니다."));
+
+        // 토큰 검증 및 사용자 정보 획득
+        User user = verifier.verifyAndGetOrCreate(dto.token());
+
+        // 신규 사용자인지 검증
+        boolean isNewUser = user.getOnboardingType() == null;
+
+        // jwt 발급
+        String token = jwtTokenProvider.generateToken(user.getId());
+
+        return new SocialLoginResponse(isNewUser, token, user.getId(), user.getOnboardingType());
     }
 }

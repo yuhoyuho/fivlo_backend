@@ -140,6 +140,14 @@ public class User {
         this.isPremium = isPremium != null ? isPremium : false;
     }
 
+    /**
+     * 소셜 로그인 연동
+     */
+    public void linkSocialAccount(String socialId, SocialProvider socialProvider) {
+        this.socialId = socialId;
+        this.socialProvider = socialProvider;
+    }
+
     // ==================== Enum 클래스들 ====================
     
     /**
