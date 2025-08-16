@@ -40,7 +40,8 @@ public class Routes {
     // ==================== 포모도로 및 집중도 분석 ====================
     public static final String POMODORO_BASE = API_BASE + "/pomodoro";
     public static final String POMODORO_GOALS = POMODORO_BASE + "/goals";
-    public static final String POMODORO_SESSIONS = POMODORO_BASE + "/sessions";
+    public static final String POMODORO_SESSIONS_START = POMODORO_BASE + "/sessions/start";
+    public static final String POMODORO_SESSIONS_END = POMODORO_BASE + "/sessions/end";
     public static final String POMODORO_COINS = POMODORO_BASE + "/coins";
     
     public static final String ANALYSIS_BASE = API_BASE + "/analysis";

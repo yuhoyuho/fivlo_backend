@@ -56,7 +56,14 @@ public class PomodoroSession {
     }
 
     // ==================== 비즈니스 메서드 ====================
-    
+
+    /**
+     * 세션 지속시간 수정
+     */
+    public void updateDurationInSeconds(Integer durationInSeconds) {
+        this.durationInSeconds = durationInSeconds;
+    }
+
     /**
      * 30분(25분 집중+5분 휴식) 1사이클 완료 여부 확인
      */
@@ -76,5 +83,12 @@ public class PomodoroSession {
      */
     public double getDurationInHours() {
         return durationInSeconds / 3600.0;
+    }
+
+    /**
+     * 사이클 완료 여부 업데이트
+     */
+    public void updateCycleCompletedStatus(Boolean isCycleCompleted) {
+        this.isCycleCompleted = isCycleCompleted != null ? isCycleCompleted : false;
     }
 }
