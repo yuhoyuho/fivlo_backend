@@ -3,23 +3,22 @@ package com.fivlo.fivlo_backend.security;
 import com.fivlo.fivlo_backend.config.JwtConfig;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
+import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
 import java.util.Date;
 
 @Component
+@RequiredArgsConstructor
 public class JwtTokenProvider {
 
     private static final Logger logger = LoggerFactory.getLogger(JwtTokenProvider.class);
 
-    @Autowired
-    private JwtConfig jwtConfig;
+    private final JwtConfig jwtConfig;
 
     private SecretKey getSigningKey() {
         return Keys.hmacShaKeyFor(jwtConfig.getJwtSecret().getBytes());
@@ -47,8 +46,8 @@ public class JwtTokenProvider {
 
     /** Authentication으로 JWT 토큰 생성 */
     public String generateToken(Authentication authentication) {
-        UserDetails userPrincipal = (UserDetails) authentication.getPrincipal();
-        return generateToken(Long.valueOf(userPrincipal.getUsername()));
+        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+        return generateToken(userDetails.getUser().getId());
     }
 
     /** 토큰에서 사용자 ID 추출 */
@@ -57,6 +56,14 @@ public class JwtTokenProvider {
                 .parseSignedClaims(token)
                 .getPayload();
         return Long.valueOf(claims.getSubject());
+    }
+
+    /** 토큰에서 이메일 추출 */
+    public String getUserEmailFromToken(String token) {
+        Claims claims = getParser()
+                .parseSignedClaims(token)
+                .getPayload();
+        return claims.getSubject();
     }
 
     /** 토큰에서 만료일 추출 */

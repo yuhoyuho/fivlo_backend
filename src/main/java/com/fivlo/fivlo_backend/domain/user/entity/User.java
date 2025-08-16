@@ -58,7 +58,7 @@ public class User {
     private Integer totalCoins = 0;
 
     @Column(name = "last_pomodoro_coin_date")
-    private LocalDate lastPomodorooCoinDate;
+    private LocalDate lastPomodoroCoinDate;
 
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -129,8 +129,8 @@ public class User {
     /**
      * 포모도로 코인 지급일 업데이트
      */
-    public void updateLastPomodorooCoinDate(LocalDate date) {
-        this.lastPomodorooCoinDate = date;
+    public void updateLastPomodoroCoinDate(LocalDate date) {
+        this.lastPomodoroCoinDate = date;
     }
 
     /**
@@ -138,6 +138,14 @@ public class User {
      */
     public void updatePremiumStatus(Boolean isPremium) {
         this.isPremium = isPremium != null ? isPremium : false;
+    }
+
+    /**
+     * 소셜 로그인 연동
+     */
+    public void linkSocialAccount(String socialId, SocialProvider socialProvider) {
+        this.socialId = socialId;
+        this.socialProvider = socialProvider;
     }
 
     // ==================== Enum 클래스들 ====================

@@ -1,10 +1,7 @@
 package com.fivlo.fivlo_backend.config;
 
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 
 /**
  * JWT 관련 설정 클래스
@@ -34,16 +31,6 @@ public class JwtConfig {
      */
     public Long getJwtExpiration() {
         return jwtExpiration;
-    }
-
-    /**
-     * 비밀번호 암호화를 위한 PasswordEncoder Bean
-     * BCrypt 알고리즘 사용으로 안전한 비밀번호 해싱
-     * @return BCryptPasswordEncoder 인스턴스
-     */
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
     }
 
     /**
