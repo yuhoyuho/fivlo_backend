@@ -63,6 +63,7 @@ public class Routes {
     public static final String TIME_ATTACK_GOALS = TIME_ATTACK_BASE + "/goals";
     public static final String TIME_ATTACK_RECOMMEND_STEPS = TIME_ATTACK_BASE + "/recommend-steps";
     public static final String TIME_ATTACK_SESSIONS = TIME_ATTACK_BASE + "/sessions";
+    public static final String TIME_ATTACK_STEPS = TIME_ATTACK_BASE + "/steps";
     
     // ==================== 망각방지 알림 시스템 ====================
     public static final String GEO_BASE = API_BASE + "/geo";
@@ -96,6 +97,7 @@ public class Routes {
     
     // Time Attack 관련
     public static final String TIME_ATTACK_GOALS_BY_ID = TIME_ATTACK_GOALS + "/{goalId}";
+    public static final String TIME_ATTACK_STEPS_BY_ID = TIME_ATTACK_STEPS + "/{stepId}";
     
     // Reminders 관련
     public static final String REMINDERS_BY_ID = REMINDERS_BASE + "/{reminderId}";
