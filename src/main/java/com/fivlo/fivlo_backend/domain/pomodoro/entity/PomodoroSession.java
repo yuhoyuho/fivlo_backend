@@ -2,10 +2,7 @@ package com.fivlo.fivlo_backend.domain.pomodoro.entity;
 
 import com.fivlo.fivlo_backend.domain.user.entity.User;
 import jakarta.persistence.*;
-import lombok.AccessLevel;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
@@ -19,7 +16,9 @@ import java.time.LocalDateTime;
 @Table(name = "pomodoro_sessions")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor
 @EntityListeners(AuditingEntityListener.class)
+@Builder
 public class PomodoroSession {
 
     @Id
@@ -36,9 +35,11 @@ public class PomodoroSession {
     private PomodoroGoal pomodoroGoal;
 
     @Column(name = "duration_in_seconds", nullable = false)
-    private Integer durationInSeconds;
+    @Builder.Default
+    private Integer durationInSeconds = 0;
 
     @Column(name = "is_cycle_completed", nullable = false)
+    @Builder.Default
     private Boolean isCycleCompleted = false;
 
     @CreatedDate

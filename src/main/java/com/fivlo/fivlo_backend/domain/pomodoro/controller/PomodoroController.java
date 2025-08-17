@@ -3,7 +3,6 @@ package com.fivlo.fivlo_backend.domain.pomodoro.controller;
 import com.fivlo.fivlo_backend.common.Routes;
 import com.fivlo.fivlo_backend.domain.pomodoro.dto.*;
 import com.fivlo.fivlo_backend.domain.pomodoro.service.PomodoroService;
-import com.fivlo.fivlo_backend.domain.pomodoro.dto.CoinByPomodoroSessionResponse;
 import com.fivlo.fivlo_backend.security.CustomUserDetails;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -11,8 +10,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 
 @RestController
