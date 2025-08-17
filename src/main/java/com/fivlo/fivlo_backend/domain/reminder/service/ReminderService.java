@@ -133,7 +133,7 @@ public class ReminderService {
         String dayOfWeek = date.getDayOfWeek().name().substring(0, 3);
 
         List<ForgettingPreventionReminder> activeReminders = reminderRepository.findByUserAndRepetitionDaysContaining(user, dayOfWeek);
-        long completedCount = reminderCompletionRepository.countByUserAndCompletionDateAndIsCompleted(user, date, true);
+        long completedCount = reminderCompletionRepository.countByReminderUserAndCompletionDateAndIsCompleted(user, date, true);
 
         boolean allCompleted = !activeReminders.isEmpty() && activeReminders.size() == completedCount;
         boolean coinAwarded = false;

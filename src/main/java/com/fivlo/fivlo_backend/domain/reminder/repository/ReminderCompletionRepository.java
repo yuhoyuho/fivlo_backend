@@ -11,7 +11,7 @@ import java.util.Optional;
 public interface ReminderCompletionRepository extends JpaRepository<DailyReminderCompletion, Long> {
     Optional<DailyReminderCompletion> findByReminderAndCompletionDate(ForgettingPreventionReminder reminder, LocalDate date);
 
-    long countByUserAndCompletionDateAndIsCompleted(User user, LocalDate date, boolean isCompleted);
+    long countByReminderUserAndCompletionDateAndIsCompleted(User user, LocalDate date, boolean isCompleted);
 
     void deleteByReminder(ForgettingPreventionReminder reminder);
 }
