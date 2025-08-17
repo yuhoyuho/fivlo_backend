@@ -12,12 +12,25 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 
 @RestController
 @RequiredArgsConstructor
 public class PomodoroController {
 
     private final PomodoroService pomodoroService;
+
+    /**
+     * 포모도로 목표 목록 조회
+     * HTTP : GET
+     * EndPoint : /api/v1/pomodoro/goals
+     * PomodoroGoalResponse -> 조회된 PomodoroGoal 객체를 넣음 (프론트에서 필요한 값만 꺼내서 사용. ex) id, color ..)
+     */
+    @GetMapping(Routes.POMODORO_GOALS)
+    public ResponseEntity<PomodoroGoalListResponse> getAll(@AuthenticationPrincipal CustomUserDetails userDetails) {
+        return ResponseEntity.ok(pomodoroService.findPomodoroGoals(userDetails.getUser().getId()));
+    }
 
     /**
      * 포모도로 목표 생성
@@ -30,17 +43,6 @@ public class PomodoroController {
             @Valid @RequestBody PomodoroGoalCreateRequest dto) {
 
         return ResponseEntity.status(201).body(pomodoroService.createGoal(userDetails.getUser().getId(), dto));
-    }
-
-    /**
-     * 포모도로 목표 목록 조회 ************ 미완성 ************
-     * HTTP : GET
-     * EndPoint : /api/v1/pomodoro/goals
-     * PomodoroGoalResponse -> 조회된 PomodoroGoal 객체를 넣음 (프론트에서 필요한 값만 꺼내서 사용. ex) id, color ..)
-     */
-    @GetMapping(Routes.POMODORO_GOALS)
-    public ResponseEntity<PomodoroGoalResponse> getAll(@AuthenticationPrincipal CustomUserDetails userDetails) {
-        return ResponseEntity.ok(pomodoroService.findPomodoroGoals(userDetails.getUser().getId()));
     }
 
     /**
@@ -88,8 +90,10 @@ public class PomodoroController {
      * ManyToOne 관계라면 pomodoroSessionId를 받아야함
      */
     @PostMapping(Routes.POMODORO_SESSIONS_END)
-    public ResponseEntity<PomodoroSessionEndResponse> endSession(@Valid @RequestBody PomodoroSessionEndRequest dto) {
-        return ResponseEntity.ok(pomodoroService.endSession(dto));
+    public ResponseEntity<PomodoroSessionEndResponse> endSession(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @Valid @RequestBody PomodoroSessionEndRequest dto) {
+        return ResponseEntity.ok(pomodoroService.endSession(userDetails.getUser().getId(), dto));
     }
 
     /**

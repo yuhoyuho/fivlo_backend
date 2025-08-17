@@ -26,11 +26,14 @@ public class PomodoroService {
     private final PomodoroGoalRepository pomodoroGoalRepository;
     private final UserRepository userRepository;
 
-    /// //// 미완성 !*******************
     @Transactional(readOnly = true)
-    public PomodoroGoalResponse findPomodoroGoals(Long id) {
-        List<PomodoroGoal> pomodoroGoalList = pomodoroGoalRepository.findByUserId(id);
-        return new PomodoroGoalResponse(pomodoroGoalList);
+    public PomodoroGoalListResponse findPomodoroGoals(Long id) {
+        List<PomodoroGoalResponse> goals = pomodoroGoalRepository.findByUserId(id)
+                .stream()
+                .map(goal -> new PomodoroGoalResponse(goal.getId(), goal.getName(), goal.getColor()))
+                .toList();
+
+        return new PomodoroGoalListResponse(goals);
     }
 
     @Transactional
@@ -84,8 +87,10 @@ public class PomodoroService {
     public PomodoroSessionCreateResponse createSession(Long id, @Valid PomodoroSessionCreateRequest dto) {
         // 포모도로 세션 생성
         PomodoroSession session = PomodoroSession.builder()
-                .user(userRepository.findById(id).get())
-                .pomodoroGoal(pomodoroGoalRepository.findById(dto.id()).get())
+                .user(userRepository.findById(id)
+                        .orElseThrow(() -> new NoSuchElementException("사용자를 찾을 수 없습니다.")))
+                .pomodoroGoal(pomodoroGoalRepository.findById(dto.id())
+                        .orElseThrow(() -> new NoSuchElementException("해당 목표를 찾을 수 없습니다.")))
                 .build();
         pomodoroSessionRepository.save(session);
 
@@ -95,11 +100,16 @@ public class PomodoroService {
      // 수정해야함 (dto에 pomodoro_goal_id를 받으면 해당 세션을 종료할 수가 없음.)
      // 세션은 삭제하는게 아니라 그냥 기록을 유지하는거라서
     @Transactional
-    public PomodoroSessionEndResponse endSession(@Valid PomodoroSessionEndRequest dto) {
+    public PomodoroSessionEndResponse endSession(Long id, @Valid PomodoroSessionEndRequest dto) {
 
         // durationTime 추가
         PomodoroSession session = pomodoroSessionRepository.findById(dto.pomodoroSessionId())
                 .orElseThrow(() -> new NoSuchElementException("해당 세션을 찾을 수 없습니다."));
+
+        if(!session.getUser().getId().equals(id)) {
+            throw new AccessDeniedException("해당 세션을 종료할 권한이 없습니다.");
+        }
+
         session.updateDurationInSeconds(dto.durationInSeconds());
 
         // 사이클 확인 후 상태 변경
@@ -128,6 +138,11 @@ public class PomodoroService {
         // 포모도로 세션 조회
         PomodoroSession session = pomodoroSessionRepository.findById(dto.pomodoroSessionId())
                 .orElseThrow(() -> new NoSuchElementException("해당 세션을 찾을 수 없습니다."));
+
+        // 세션을 가진 사용자의 id 확인
+        if(!session.getUser().getId().equals(user.getId())) {
+            throw new AccessDeniedException("자신의 세션만 코인을 받을 수 있습니다.");
+        }
 
         // isCycleCompleted, isPremiumUser 확인
         if(session.getIsCycleCompleted() && user.getIsPremium()) {
