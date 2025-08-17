@@ -10,7 +10,6 @@ import org.springframework.web.reactive.function.client.WebClient;
 import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 public class GeoService {
@@ -27,7 +26,7 @@ public class GeoService {
     public AddressSearchResponse searchAddress(String query) {
         KakaoAddressResponse kakaoResponse = webClient.get()
                 .uri(uriBuilder -> uriBuilder
-                        .path("/v2/local/search/address.json")
+                        .path("/v2/local/search/keyword.json")
                         .queryParam("query", query)
                         .build())
                 .header("Authorization", "KakaoAK " + kakaoApiKey)
@@ -39,16 +38,17 @@ public class GeoService {
             return new AddressSearchResponse(Collections.emptyList());
         }
 
-        // 카카오 dto 리스트를 애플리케이션 api dto 리스트로 변환
-        List<AddressDto> dto = kakaoResponse.documents().stream()
-                .map(document -> new AddressDto(
-                        document.addressName(),
-                        document.roadAddressName(),
-                        new BigDecimal(document.x()),
-                        new BigDecimal(document.y())
-                ))
-                .collect(Collectors.toList());
+        // 응답으로 받는 여러 결과 중 가장 첫번째 응답만 선택
+        var firstDocument = kakaoResponse.documents().get(0);
 
-        return new AddressSearchResponse(dto);
+        // 첫번째 결과만 dto로 변환
+        AddressDto dto = new AddressDto(
+                firstDocument.addressName(),
+                firstDocument.roadAddressName(),
+                new BigDecimal(firstDocument.x()),
+                new BigDecimal(firstDocument.y())
+        );
+
+        return new AddressSearchResponse(List.of(dto));
     }
 }
