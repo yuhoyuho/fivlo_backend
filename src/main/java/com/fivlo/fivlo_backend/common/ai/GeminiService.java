@@ -1,6 +1,7 @@
 package com.fivlo.fivlo_backend.common.ai;
 
 import com.google.genai.Client;
+import com.google.genai.types.GenerateContentConfig;
 import com.google.genai.types.GenerateContentResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,17 +29,18 @@ public class GeminiService {
             if (prompt == null) throw new IllegalArgumentException("prompt is null");
             logger.debug("Generating content, prompt preview: {}", prompt.substring(0, Math.min(100, prompt.length())));
 
-            // 공식 예제: client.models.generateContent(model, contents, config)
-            GenerateContentResponse res = client.models.generateContent(model, prompt, null);
-            String text = res.text(); // quick accessor
+            // JSON만 생성하도록 모델에 강제
+            GenerateContentConfig cfg = GenerateContentConfig.builder()
+                    .responseMimeType("application/json") // JSON만 달라!
+                    .build();
+
+            // 공식 시그니처: (model, contents, config)
+            GenerateContentResponse res = client.models.generateContent(model, prompt, cfg);
+            String text = res.text();
             logger.debug("Generated content length: {}", (text != null ? text.length() : 0));
 
-            // AI 응답에서 마크다운 코드 블록 제거
-            if (text != null) {
-                text = cleanMarkdownCodeBlocks(text);
-            }
-
-            return text;
+            // 혹시라도 모델이 앞뒤로 설명/마크다운을 섞어 보내면 첫 번째 JSON만 추출
+            return extractFirstJson(text);
 
         } catch (Exception e) {
             logger.error("Error generating content with Gemini", e);
@@ -51,41 +53,45 @@ public class GeminiService {
         return CompletableFuture.supplyAsync(() -> generateContent(prompt));
     }
 
-    // 아래 도우미들은 기존 프롬프트 조립 로직을 그대로 사용하고,
-    // 마지막에 this.generateContent(prompt)만 호출하도록 유지합니다.
+    // === 프롬프트 도우미들 ===
+
     public String analyzeGoalAndRecommendTasks(String goalContent, String goalType, String startDate, String endDate) {
         StringBuilder prompt = new StringBuilder();
         prompt.append("당신은 생산성 앱의 AI 어시스턴트입니다. 사용자의 목표를 분석하고 실행 가능한 Task들을 추천해주세요.\n\n")
                 .append("목표: ").append(goalContent).append("\n")
                 .append("목표 유형: ").append(goalType).append("\n");
+
         if (startDate != null && endDate != null) {
             prompt.append("기간: ").append(startDate).append(" ~ ").append(endDate).append("\n");
         }
-        prompt.append("\n다음 JSON 형식으로 응답해주세요:\n")
+
+        // 오직 JSON만 반환 지시 (백틱/마크다운 금지)
+        prompt.append("\n반드시 아래 JSON 스키마로만, 추가 텍스트 없이 응답하세요.\n")
                 .append("{\n")
                 .append("  \"recommended_tasks\": [\n")
                 .append("    {\"content\": \"구체적인 Task 내용\", \"due_date\": \"YYYY-MM-DD\", \"repeat_type\": \"DAILY 또는 NONE\", \"end_date\": \"YYYY-MM-DD 또는 null\"}\n")
                 .append("  ]\n")
-                .append("}\n")
-                .append("- Task는 구체적이고 실행 가능해야 합니다\n")
-                .append("- 목표 달성에 도움이 되는 순서로 배치해주세요\n")
-                .append("- 각 Task는 하루에 완료 가능한 크기여야 합니다\\n")
-                .append("주의: ```json 같은 마크다운 문법을 사용하지 말고, { 로 시작하는 순수 JSON만 반환하세요.");
+                .append("}\n");
+
         return generateContent(prompt.toString());
     }
 
     public String recommendTimeAttackSteps(String goalName, Integer totalDurationInSeconds) {
         int totalMinutes = Math.max(0, (totalDurationInSeconds != null ? totalDurationInSeconds : 0) / 60);
+
         StringBuilder prompt = new StringBuilder();
         prompt.append("당신은 시간 관리 전문가입니다. 다음 활동을 효율적으로 완료할 수 있도록 단계별 일정을 추천해주세요.\n\n")
                 .append("활동: ").append(goalName).append("\n")
                 .append("총 시간: ").append(totalMinutes).append("분\n\n")
-                .append("다음 JSON 형식으로만 응답해주세요. 마크다운 코드 블록이나 추가 설명 없이 순수 JSON만 반환하세요:\\n")
-                .append("{\\\"recommended_steps\\\": [{\\\"content\\\": \\\"단계별 활동 내용\\\", \\\"duration_in_seconds\\\": 할당된_시간_초단위}]}\\n\\n")
-                .append("주의: ```json 같은 마크다운 문법을 사용하지 말고, { 로 시작하는 순수 JSON만 반환하세요.\\n")
-                .append("- 각 단계는 논리적 순서를 가져야 합니다\n")
-                .append("- 총 시간이 정확히 ").append(totalDurationInSeconds).append("초가 되도록 배분해주세요\n")
-                .append("- 단계는 3-8개 정도가 적당합니다");
+                .append("오직 아래 JSON 형식으로만, 추가 텍스트/마크다운 없이 응답하세요.\n")
+                .append("{\n")
+                .append("  \"recommended_steps\": [\n")
+                .append("    { \"content\": \"단계별 활동 내용\", \"duration_in_seconds\": 0 }\n")
+                .append("  ]\n")
+                .append("}\n")
+                .append("- 단계는 논리적 순서를 가지며 3~8개로 제안하세요.\n")
+                .append("- 전체 단계의 시간 합은 정확히 ").append(totalDurationInSeconds).append("초가 되도록 분배하세요.\n");
+
         return generateContent(prompt.toString());
     }
 
@@ -93,39 +99,62 @@ public class GeminiService {
         StringBuilder prompt = new StringBuilder();
         prompt.append("당신은 집중도 분석 전문가입니다. 사용자의 월간 포모도로 집중 데이터를 분석하고 맞춤형 제안을 해주세요.\n\n")
                 .append("분석 데이터:\n").append(analysisData).append("\n\n")
+                .append("오직 아래 JSON 형식으로만, 추가 텍스트 없이 응답하세요.\n")
                 .append("{\n")
                 .append("  \"optimal_start_time_info\": {\"time\": \"AM/PM HH:MM\", \"ai_comment\": \"최적 시간대 선택 이유\"},\n")
                 .append("  \"optimal_day_info\": [{\"day\": \"요일명\", \"ai_comment\": \"해당 요일이 좋은 이유\"}],\n")
                 .append("  \"low_concentration_time_info\": {\"time_range\": \"PM HH:MM ~ HH:MM\", \"ai_comment\": \"집중도가 낮은 시간대 활용 방법\"},\n")
                 .append("  \"activity_suggestions\": {\"suggestions\": [{\"activity_name\": \"활동명\", \"time_range\": \"추천 시간대\"}], \"ai_comment\": \"활동별 시간 배치 조언\"}\n")
-                .append("}\n")
-                .append("- 실제 데이터에 기반한 개인화된 조언을 제공해주세요\n")
-                .append("- 구체적이고 실행 가능한 제안을 해주세요\\n")
-                .append("주의: ```json 같은 마크다운 문법을 사용하지 말고, { 로 시작하는 순수 JSON만 반환하세요.");
+                .append("}\n");
+
         return generateContent(prompt.toString());
     }
 
     /**
-     * AI 응답에서 마크다운 코드 블록을 제거하여 순수 JSON만 추출
+     * 모델 응답에서 첫 번째 JSON(Object/Array)을 안전하게 추출
+     * - 앞뒤 설명, 마크다운, 로그 텍스트가 섞여 와도 동작
      */
-    private String cleanMarkdownCodeBlocks(String response) {
-        if (response == null) return null;
-        
-        // ```json ... ``` 형태의 마크다운 코드 블록 제거
-        String cleaned = response.trim();
-        
-        // 시작 부분의 ```json 또는 ``` 제거
-        if (cleaned.startsWith("```json")) {
-            cleaned = cleaned.substring(7);
-        } else if (cleaned.startsWith("```")) {
-            cleaned = cleaned.substring(3);
+    private String extractFirstJson(String s) {
+        if (s == null) return null;
+        String text = s.trim();
+
+        int objStart = text.indexOf('{');
+        int arrStart = text.indexOf('[');
+
+        if (objStart == -1 && arrStart == -1) {
+            return text; // 어차피 ObjectMapper가 다시 실패를 던질 것
         }
-        
-        // 끝 부분의 ``` 제거
-        if (cleaned.endsWith("```")) {
-            cleaned = cleaned.substring(0, cleaned.length() - 3);
+
+        int start = -1;
+        char open, close;
+        if (objStart != -1 && (arrStart == -1 || objStart < arrStart)) {
+            start = objStart; open = '{'; close = '}';
+        } else {
+            start = arrStart; open = '['; close = ']';
         }
-        
-        return cleaned.trim();
+
+        int depth = 0;
+        boolean inString = false;
+        boolean escape = false;
+
+        for (int i = start; i < text.length(); i++) {
+            char c = text.charAt(i);
+
+            if (escape) { escape = false; continue; }
+            if (c == '\\') { escape = true; continue; }
+            if (c == '"') { inString = !inString; continue; }
+            if (inString) continue;
+
+            if (c == open) depth++;
+            else if (c == close) {
+                depth--;
+                if (depth == 0) {
+                    return text.substring(start, i + 1).trim();
+                }
+            }
+        }
+
+        // 매칭 실패 시, 일단 시작부터 끝까지 반환(파서가 다시 검증)
+        return text.substring(start).trim();
     }
 }
