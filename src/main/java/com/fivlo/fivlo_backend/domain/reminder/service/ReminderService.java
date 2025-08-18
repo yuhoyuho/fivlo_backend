@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.Arrays;
 import java.util.List;
 import java.util.NoSuchElementException;
 
@@ -30,7 +31,7 @@ public class ReminderService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new NoSuchElementException("사용자를 찾을 수 없습니다."));
 
-        String repetitionDays = String.join(",", dto.repetitionDays());
+        String repetitionDays = convertDaysListToFixedString(dto.repetitionDays());
 
         ForgettingPreventionReminder reminder = ForgettingPreventionReminder.builder()
                 .user(user)
@@ -60,7 +61,7 @@ public class ReminderService {
                         r.getId(),
                         r.getTitle(),
                         r.getAlarmTime(),
-                        List.of(r.getRepetitionDaysArray()),
+                        r.getRepetitionDaysArray(),
                         r.getLocationName(),
                         r.hasLocationSet()
                 ))
@@ -80,7 +81,7 @@ public class ReminderService {
         // 알림 조회
         ForgettingPreventionReminder reminder = findReminderAndCheckedByUserId(userId, reminderId);
 
-        String repetitionDays = (dto.repetitionDays() != null) ? String.join(",", dto.repetitionDays()) : null;
+        String repetitionDays = (dto.repetitionDays() != null) ? convertDaysListToFixedString(dto.repetitionDays()) : null;
         reminder.updateBasicInfo(dto.title(), dto.alarmTime(), repetitionDays);
 
         if(user.getIsPremium() && dto.locationName() != null) {
@@ -130,9 +131,13 @@ public class ReminderService {
                 .orElseThrow(() -> new NoSuchElementException("사용자를 찾을 수 없습니다."));
 
         LocalDate date = dto.date();
-        String dayOfWeek = date.getDayOfWeek().name().substring(0, 3);
+        String dayOfWeek = date.getDayOfWeek().name();
 
-        List<ForgettingPreventionReminder> activeReminders = reminderRepository.findByUserAndRepetitionDaysContaining(user, dayOfWeek);
+        List<ForgettingPreventionReminder> allReminders = reminderRepository.findByUser(user);
+
+        List<ForgettingPreventionReminder> activeReminders = allReminders.stream()
+                .filter(r -> r.isActiveOnDay(dayOfWeek))
+                .toList();
         long completedCount = reminderCompletionRepository.countByReminderUserAndCompletionDateAndIsCompleted(user, date, true);
 
         boolean allCompleted = !activeReminders.isEmpty() && activeReminders.size() == completedCount;
@@ -157,5 +162,28 @@ public class ReminderService {
             throw new AccessDeniedException("이 알림에 접근할 권한이 없습니다.");
         }
         return reminder;
+    }
+
+    /**
+     * MON -> M, TUE -> T ..
+     */
+    private static final List<String> DAYS_OF_WEEK = List.of("MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN");
+
+    private String convertDaysListToFixedString(List<String> days) {
+        if(days == null || days.isEmpty()) {
+            return "-------";
+        }
+
+        char[] result = new char[7];
+        Arrays.fill(result, '-'); // 기본값 : "-"
+
+        for(String day : days) {
+            int idx = DAYS_OF_WEEK.indexOf(day.toUpperCase());
+            if(idx != -1) {
+                result[idx] = day.charAt(0);
+            }
+        }
+
+        return new String(result);
     }
 }
