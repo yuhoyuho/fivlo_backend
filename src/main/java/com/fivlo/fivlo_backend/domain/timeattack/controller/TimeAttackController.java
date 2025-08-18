@@ -16,7 +16,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
-
+import com.fivlo.fivlo_backend.security.CustomUserDetails;
 import jakarta.validation.Valid;
 import java.util.Map;
 
@@ -41,8 +41,10 @@ public class TimeAttackController {
     @GetMapping("/goals")
     public ResponseEntity<TimeAttackGoalDto.GoalListResponse> getGoals(
             @AuthenticationPrincipal UserDetails userDetails) {
-        
-        Long userId = Long.valueOf(userDetails.getUsername());
+
+        // CustomUserDetails에서 직접 userId를 가져오도록 수정
+        CustomUserDetails customUserDetails = (CustomUserDetails) userDetails;
+        Long userId = customUserDetails.getUser().getId(); // ✅ 수정된 코드
         log.debug("Getting time attack goals for user: {}", userId);
         
         TimeAttackGoalDto.GoalListResponse response = timeAttackService.getAllGoals(userId);
@@ -58,8 +60,10 @@ public class TimeAttackController {
     public ResponseEntity<TimeAttackGoalDto.GoalResponse> createGoal(
             @AuthenticationPrincipal UserDetails userDetails,
             @Valid @RequestBody TimeAttackGoalDto.GoalRequest request) {
-        
-        Long userId = Long.valueOf(userDetails.getUsername());
+
+        // CustomUserDetails에서 직접 userId를 가져오도록 수정
+        CustomUserDetails customUserDetails = (CustomUserDetails) userDetails;
+        Long userId = customUserDetails.getUser().getId(); // ✅ 수정된 코드
         log.debug("Creating time attack goal for user: {}, name: {}", userId, request.getName());
         
         TimeAttackGoalDto.GoalResponse response = timeAttackService.createGoal(userId, request);
@@ -76,8 +80,10 @@ public class TimeAttackController {
             @AuthenticationPrincipal UserDetails userDetails,
             @PathVariable Long goalId,
             @Valid @RequestBody TimeAttackGoalDto.GoalRequest request) {
-        
-        Long userId = Long.valueOf(userDetails.getUsername());
+
+        // CustomUserDetails에서 직접 userId를 가져오도록 수정
+        CustomUserDetails customUserDetails = (CustomUserDetails) userDetails;
+        Long userId = customUserDetails.getUser().getId(); // ✅ 수정된 코드
         log.debug("Updating time attack goal: {} for user: {}", goalId, userId);
         
         TimeAttackGoalDto.GoalResponse response = timeAttackService.updateGoal(userId, goalId, request);
@@ -93,8 +99,10 @@ public class TimeAttackController {
     public ResponseEntity<Map<String, String>> deleteGoal(
             @AuthenticationPrincipal UserDetails userDetails,
             @PathVariable Long goalId) {
-        
-        Long userId = Long.valueOf(userDetails.getUsername());
+
+        // CustomUserDetails에서 직접 userId를 가져오도록 수정
+        CustomUserDetails customUserDetails = (CustomUserDetails) userDetails;
+        Long userId = customUserDetails.getUser().getId(); // ✅ 수정된 코드
         log.debug("Deleting time attack goal: {} for user: {}", goalId, userId);
         
         timeAttackService.deleteGoal(userId, goalId);
@@ -130,8 +138,10 @@ public class TimeAttackController {
     public ResponseEntity<TimeAttackSessionDto.SessionResponse> startSession(
             @AuthenticationPrincipal UserDetails userDetails,
             @Valid @RequestBody TimeAttackSessionDto.SessionStartRequest request) {
-        
-        Long userId = Long.valueOf(userDetails.getUsername());
+
+        // CustomUserDetails에서 직접 userId를 가져오도록 수정
+        CustomUserDetails customUserDetails = (CustomUserDetails) userDetails;
+        Long userId = customUserDetails.getUser().getId(); // ✅ 수정된 코드
         log.debug("Starting time attack session for user: {}, goal: {}", userId, request.getGoalId());
         
         TimeAttackSessionDto.SessionResponse response = timeAttackService.startSession(userId, request);
@@ -147,8 +157,10 @@ public class TimeAttackController {
     public ResponseEntity<TimeAttackSessionDto.SessionListResponse> getSessionHistory(
             @AuthenticationPrincipal UserDetails userDetails,
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
-        
-        Long userId = Long.valueOf(userDetails.getUsername());
+
+        // CustomUserDetails에서 직접 userId를 가져오도록 수정
+        CustomUserDetails customUserDetails = (CustomUserDetails) userDetails;
+        Long userId = customUserDetails.getUser().getId(); // ✅ 수정된 코드
         log.debug("Getting session history for user: {}", userId);
         
         TimeAttackSessionDto.SessionListResponse response = timeAttackService.getSessionHistory(userId, pageable);
@@ -166,8 +178,10 @@ public class TimeAttackController {
     public ResponseEntity<Map<String, Object>> addStep(
             @AuthenticationPrincipal UserDetails userDetails,
             @Valid @RequestBody TimeAttackStepDto.AddStepRequest request) {
-        
-        Long userId = Long.valueOf(userDetails.getUsername());
+
+        // CustomUserDetails에서 직접 userId를 가져오도록 수정
+        CustomUserDetails customUserDetails = (CustomUserDetails) userDetails;
+        Long userId = customUserDetails.getUser().getId(); // ✅ 수정된 코드
         log.debug("Adding step to session: {} for user: {}", request.getSessionId(), userId);
         
         TimeAttackStepDto.StepResponse response = timeAttackService.addStepToSession(userId, request);
@@ -187,8 +201,10 @@ public class TimeAttackController {
             @AuthenticationPrincipal UserDetails userDetails,
             @PathVariable Long stepId,
             @Valid @RequestBody TimeAttackStepDto.UpdateStepRequest request) {
-        
-        Long userId = Long.valueOf(userDetails.getUsername());
+
+        // CustomUserDetails에서 직접 userId를 가져오도록 수정
+        CustomUserDetails customUserDetails = (CustomUserDetails) userDetails;
+        Long userId = customUserDetails.getUser().getId(); // ✅ 수정된 코드
         log.debug("Updating step: {} for user: {}", stepId, userId);
         
         timeAttackService.updateStep(userId, stepId, request);
@@ -204,8 +220,10 @@ public class TimeAttackController {
     public ResponseEntity<Map<String, String>> deleteStep(
             @AuthenticationPrincipal UserDetails userDetails,
             @PathVariable Long stepId) {
-        
-        Long userId = Long.valueOf(userDetails.getUsername());
+
+        // CustomUserDetails에서 직접 userId를 가져오도록 수정
+        CustomUserDetails customUserDetails = (CustomUserDetails) userDetails;
+        Long userId = customUserDetails.getUser().getId(); // ✅ 수정된 코드
         log.debug("Deleting step: {} for user: {}", stepId, userId);
         
         timeAttackService.deleteStepById(userId, stepId);
