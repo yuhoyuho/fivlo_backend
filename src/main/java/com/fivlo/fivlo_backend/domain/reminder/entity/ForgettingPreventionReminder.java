@@ -13,6 +13,9 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * 망각방지 알림 엔티티
@@ -135,11 +138,20 @@ public class ForgettingPreventionReminder {
     /**
      * 반복 요일 배열 반환
      */
-    public String[] getRepetitionDaysArray() {
-        if (repetitionDays == null || repetitionDays.isEmpty()) {
-            return new String[0];
+    private static final List<String> DAYS_OF_WEEK = List.of("MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN");
+
+    public List<String> getRepetitionDaysArray() {
+        if (repetitionDays == null || repetitionDays.length() != 7) {
+            return Collections.emptyList();
+        }
+
+        List<String> result = new ArrayList<>();
+        for(int i = 0; i < repetitionDays.length(); i++) {
+            if(repetitionDays.charAt(i) != '-') {
+                result.add(DAYS_OF_WEEK.get(i));
+            }
         }
         // 예: "MON,WED,FRI" -> ["MON", "WED", "FRI"]
-        return repetitionDays.split(",");
+        return result;
     }
 }

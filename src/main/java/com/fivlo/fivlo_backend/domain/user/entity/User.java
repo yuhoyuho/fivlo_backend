@@ -60,6 +60,9 @@ public class User {
     @Column(name = "last_pomodoro_coin_date")
     private LocalDate lastPomodoroCoinDate;
 
+    @Column(name = "last_reminder_coin_date")
+    private LocalDate lastReminderCoinDate;
+
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -131,6 +134,13 @@ public class User {
      */
     public void updateLastPomodoroCoinDate(LocalDate date) {
         this.lastPomodoroCoinDate = date;
+    }
+
+    /**
+     * 일일 완료 코인 지급일 업데이트
+     */
+    public void updateLastReminderCoinDate(LocalDate date) {
+        this.lastReminderCoinDate = date;
     }
 
     /**
