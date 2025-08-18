@@ -269,33 +269,31 @@ public class TimeAttackService {
     // ==================== 단계 관리 ====================
 
     @Transactional
-    public TimeAttackStepDto.StepResponse addStepToSession(Long userId, TimeAttackStepDto.AddStepRequest request) {
-        log.debug("Adding step to session: {} for user: {}", request.getSessionId(), userId);
-
+    public TimeAttackStepDto.StepResponse addStepToGoal(Long userId, TimeAttackStepDto.AddStepRequest request) {
+        log.debug("Adding step to goal: {} for user: {}", request.getGoalId(), userId);
+    
         validateUser(userId);
-        TimeAttackSession session = findSessionByIdAndUserId(request.getSessionId(), userId);
-
-        if (session.getIsCompleted()) {
-            log.warn("Attempted to add step to completed session: {} by user: {}", request.getSessionId(), userId);
-            throw new IllegalArgumentException("완료된 세션에는 새로운 단계를 추가할 수 없습니다.");
-        }
-
+        TimeAttackGoal goal = findGoalByIdAndUserId(request.getGoalId(), userId);
+    
+        // 임시 세션을 생성하여 단계를 저장 (실제 세션 시작 전 준비 단계)
+        TimeAttackSession tempSession = getOrCreateTempSession(goal);
+    
         // ✅ MAX 대체: Top+OrderBy로 현재 최대 stepOrder를 가진 행을 가져와 +1
         int nextStepOrder = timeAttackStepRepository
-                .findTopByTimeAttackSession_IdOrderByStepOrderDesc(request.getSessionId())
+                .findTopByTimeAttackSession_IdOrderByStepOrderDesc(tempSession.getId())
                 .map(s -> s.getStepOrder() + 1)
                 .orElse(1); // 스텝이 없으면 1부터 시작
-
+    
         TimeAttackStep newStep = TimeAttackStep.builder()
-                .timeAttackSession(session)
+                .timeAttackSession(tempSession)
                 .stepOrder(nextStepOrder)
                 .content(request.getContent())
                 .durationInSeconds(request.getDurationInSeconds())
                 .build();
-
+    
         TimeAttackStep savedStep = timeAttackStepRepository.save(newStep);
-        log.info("Added new step: {} to session: {}", savedStep.getId(), request.getSessionId());
-
+        log.info("Added new step: {} to goal: {}", savedStep.getId(), request.getGoalId());
+    
         return new TimeAttackStepDto.StepResponse(
                 savedStep.getId(),
                 savedStep.getContent(),
@@ -303,7 +301,23 @@ public class TimeAttackService {
                 savedStep.getStepOrder()
         );
     }
-
+    
+    private TimeAttackSession getOrCreateTempSession(TimeAttackGoal goal) {
+        // 임시 세션이 이미 있는지 확인 (is_completed = false인 세션)
+        return timeAttackSessionRepository
+                .findByTimeAttackGoal_IdAndIsCompletedFalse(goal.getId())
+                .orElseGet(() -> {
+                    // 임시 세션 생성
+                    TimeAttackSession tempSession = TimeAttackSession.builder()
+                            .timeAttackGoal(goal)
+                            .user(goal.getUser())  // ✅ user 설정 추가!
+                            .totalDurationInSeconds(0) // 나중에 계산됨
+                            .isCompleted(false)
+                            .build();
+                    return timeAttackSessionRepository.save(tempSession);
+                });
+    }
+    
     @Transactional
     public void updateStep(Long userId, Long stepId, TimeAttackStepDto.UpdateStepRequest request) {
         log.debug("Updating step: {} for user: {}", stepId, userId);

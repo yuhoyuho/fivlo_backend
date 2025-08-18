@@ -182,9 +182,9 @@ public class TimeAttackController {
         // CustomUserDetails에서 직접 userId를 가져오도록 수정
         CustomUserDetails customUserDetails = (CustomUserDetails) userDetails;
         Long userId = customUserDetails.getUser().getId(); // ✅ 수정된 코드
-        log.debug("Adding step to session: {} for user: {}", request.getSessionId(), userId);
+        log.debug("Adding step to goal: {} for user: {}", request.getGoalId(), userId);
         
-        TimeAttackStepDto.StepResponse response = timeAttackService.addStepToSession(userId, request);
+        TimeAttackStepDto.StepResponse response = timeAttackService.addStepToGoal(userId, request);
         
         return ResponseEntity.status(HttpStatus.CREATED).body(Map.of(
             "message", "타임어택 단계가 성공적으로 추가되었습니다.",

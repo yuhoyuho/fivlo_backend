@@ -28,4 +28,7 @@ public interface TimeAttackSessionRepository extends JpaRepository<TimeAttackSes
 
     // 목표에 연결된 세션 존재 여부 (삭제 방지 체크)
     boolean existsByTimeAttackGoal_Id(Long timeAttackGoalId);
+    
+    // 특정 목표의 미완료 세션 찾기 (임시 세션 체크)
+    java.util.Optional<TimeAttackSession> findByTimeAttackGoal_IdAndIsCompletedFalse(Long timeAttackGoalId);
 }

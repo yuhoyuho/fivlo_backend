@@ -52,10 +52,10 @@ public class TimeAttackStepDto {
     public static class AddStepRequest {
         
         /**
-         * 단계가 속할 세션의 ID
+         * 단계가 속할 타임어택 목적의 ID
          */
-        @NotNull(message = "세션 ID는 필수입니다")
-        private Long sessionId;
+        @NotNull(message = "타임어택 목적 ID는 필수입니다")
+        private Long goalId;
         
         /**
          * 단계 내용
