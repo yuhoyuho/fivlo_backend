@@ -20,6 +20,14 @@ public class ObooneDto {
             List<ShopItemResponse> items
     ) {}
 
+    // API 36-2 : 아이템 생성 요청
+    public record addItemRequest(
+            String name,
+            Integer price,
+            @JsonProperty("image_url") String imageUrl,
+            @JsonProperty("item_type") ObooniItem.ItemType itemType
+    ) {}
+
     // API 37 : 아이템 구매 요청
     public record PurchaseRequest(
             @JsonProperty("oboone_item_id") Long obooniItemId

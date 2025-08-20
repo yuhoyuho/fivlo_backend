@@ -12,6 +12,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -35,6 +36,19 @@ public class ObooneService {
         return new ObooneDto.ShopItemListResponse(items);
     }
 
+    // API 36-2 : 상점 아이템 추가
+    @Transactional
+    public Long addItem(ObooneDto.addItemRequest request) {
+        ObooniItem item = ObooniItem.builder()
+                .name(request.name())
+                .price(request.price())
+                .imageUrl(request.imageUrl())
+                .itemType(request.itemType())
+                .build();
+
+        return obooniItemRepository.save(item).getId();
+    }
+
     // API 37 : 오분이 아이템 구매
     @Transactional
     public ObooneDto.PurchaseResponse purchaseItem(Long userId, ObooneDto.PurchaseRequest request) {
@@ -44,11 +58,11 @@ public class ObooneService {
                 .orElseThrow(() -> new NoSuchElementException("해당 아이템을 찾을 수 없습니다."));
 
         if(userItemRepository.existsByUserAndObooniItem(user, item)) {
-            throw new IllegalArgumentException("이미 소유하고 있는 아이템입니다.");
+            return new ObooneDto.PurchaseResponse("이미 가지고 있는 아이템입니다.", user.getTotalCoins());
         }
 
         if(!user.useCoins(item.getPrice())) {
-            throw new IllegalArgumentException("코인이 부족합니다.");
+            return new ObooneDto.PurchaseResponse("코인이 부족합니다.", user.getTotalCoins());
         }
 
         UserItem userItem = UserItem.builder()
@@ -66,21 +80,30 @@ public class ObooneService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new NoSuchElementException("사용자를 찾을 수 없습니다."));
 
-        Map<ObooniItem.ItemType, List<ObooneDto.ClosetItemResponse>> itemsByType =
-                userItemRepository.findByUser(user).stream()
-                .map(item -> new ObooneDto.ClosetItemResponse(
-                        item.getId(),
-                        item.getObooniItem().getName(),
-                        item.getObooniItem().getImageUrl(),
-                        item.getIsEquipped()))
-                .collect(Collectors.groupingBy(
-                closetItem -> userItemRepository.findById(closetItem.id()).get().getObooniItem().getItemType()
-                ));
+        // 사용자가 소유한 모든 아이템 조회
+        List<UserItem> userItems = userItemRepository.findByUserWithObooniItem(user);
 
-        return new ObooneDto.ClosetResponse(
-                itemsByType.getOrDefault(ObooniItem.ItemType.CLOTHING, List.of()),
-                itemsByType.getOrDefault(ObooniItem.ItemType.ACCESSORY, List.of())
-        );
+        List<ObooneDto.ClosetItemResponse> clothingItems = new ArrayList<>();
+        List<ObooneDto.ClosetItemResponse> accessoryItems = new ArrayList<>();
+
+        // 3. 단순한 for-loop를 사용하여 아이템을 분류하고 DTO로 변환합니다.
+        for (UserItem userItem : userItems) {
+            ObooneDto.ClosetItemResponse dto = new ObooneDto.ClosetItemResponse(
+                    userItem.getId(),
+                    userItem.getObooniItem().getName(),
+                    userItem.getObooniItem().getImageUrl(),
+                    userItem.getIsEquipped()
+            );
+
+            if (userItem.getObooniItem().isClothing()) {
+                clothingItems.add(dto);
+            } else if (userItem.getObooniItem().isAccessory()) {
+                accessoryItems.add(dto);
+            }
+        }
+
+        // 4. 최종 응답 DTO를 생성하여 반환합니다.
+        return new ObooneDto.ClosetResponse(clothingItems, accessoryItems);
     }
 
     // API 39 : 아이템 착용

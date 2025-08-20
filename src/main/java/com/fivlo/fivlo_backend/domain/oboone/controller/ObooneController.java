@@ -24,6 +24,16 @@ public class ObooneController {
         return ResponseEntity.ok(obooneService.getShopItem());
     }
 
+    /** 오분이 상점 아이템 추가
+     * HTTP : POST
+     * EndPoint : /api/v1/oboone/item
+     */
+    @PostMapping(Routes.OBOONE_ITEM)
+    public ResponseEntity<Long> addItem(
+            @RequestBody ObooneDto.addItemRequest request) {
+        return ResponseEntity.status(201).body(obooneService.addItem(request));
+    }
+
     /** 오분이 아이템 구매
      * HTTP : POST
      * EndPoint : /api/v1/oboone/purchase
@@ -40,6 +50,7 @@ public class ObooneController {
      * HTTP : GET
      * EndPoint : /api/v1/oboone/closet
      */
+    @GetMapping(Routes.OBOONE_CLOSET)
     public ResponseEntity<ObooneDto.ClosetResponse> getCloset(@AuthenticationPrincipal CustomUserDetails userDetails) {
         return ResponseEntity.ok(obooneService.getCloset(userDetails.getUser().getId()));
     }
@@ -48,6 +59,7 @@ public class ObooneController {
      * HTTP : PATCH
      * EndPoint : /api/v1/oboone/equip/{userItemId}
      */
+    @PatchMapping(Routes.OBOONE_EQUIP)
     public ResponseEntity<String> equipItem(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long itemId) {
@@ -58,6 +70,7 @@ public class ObooneController {
      * HTTP : PATCH
      * EndPoint : /api/v1/oboone/unequip/{userItemId}
      */
+    @PatchMapping(Routes.OBOONE_UNEQUIP)
     public ResponseEntity<String> unequipItem(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long itemId) {

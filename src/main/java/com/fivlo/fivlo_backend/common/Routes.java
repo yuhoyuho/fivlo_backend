@@ -53,6 +53,7 @@ public class Routes {
     
     // ==================== 오분이 상점 및 커스터마이징 ====================
     public static final String OBOONE_BASE = API_BASE + "/oboone";
+    public static final String OBOONE_ITEM = OBOONE_BASE + "/item";
     public static final String OBOONE_SHOP = OBOONE_BASE + "/shop";
     public static final String OBOONE_PURCHASE = OBOONE_BASE + "/purchase";
     public static final String OBOONE_CLOSET = OBOONE_BASE + "/closet";
