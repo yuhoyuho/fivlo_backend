@@ -36,7 +36,7 @@ public class Routes {
     public static final String GROWTH_ALBUM_BASE = API_BASE + "/growth-album";
     public static final String GROWTH_ALBUM_CALENDAR = GROWTH_ALBUM_BASE + "/calendar";
     public static final String GROWTH_ALBUM_CATEGORIES = GROWTH_ALBUM_BASE + "/categories";
-    
+    public static final String GROWTH_ALBUM_UPLOAD = GROWTH_ALBUM_BASE + "/upload/presigned-url";
     // ==================== 포모도로 및 집중도 분석 ====================
     public static final String POMODORO_BASE = API_BASE + "/pomodoro";
     public static final String POMODORO_GOALS = POMODORO_BASE + "/goals";

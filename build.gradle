@@ -41,10 +41,10 @@ dependencies {
 	// PostGIS 지원
 	implementation 'org.hibernate:hibernate-spatial:6.4.4.Final'
 	implementation 'net.postgis:postgis-jdbc:2023.1.0'
-	
 	// Google Generative AI (Gemini) 공식 라이브러리
 	implementation 'com.google.genai:google-genai:1.6.0'
-	
+	//aws s3사용
+	implementation 'software.amazon.awssdk:s3:2.20.69'
 	implementation 'com.google.firebase:firebase-admin:9.2.0'
 	compileOnly 'org.projectlombok:lombok'
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
