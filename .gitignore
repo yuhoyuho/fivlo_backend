@@ -47,3 +47,7 @@ out/
 
 # Firebase Service Account Key and other local secrets
 secrets/
+
+logs/
+
+*.log
