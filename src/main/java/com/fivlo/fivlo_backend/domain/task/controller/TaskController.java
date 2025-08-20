@@ -1,6 +1,9 @@
 package com.fivlo.fivlo_backend.domain.task.controller;
 
 import com.fivlo.fivlo_backend.common.Routes;
+import com.fivlo.fivlo_backend.common.ai.dto.AddAITaskRequestDto;
+import com.fivlo.fivlo_backend.common.ai.dto.GoalAnalysisRequestDto;
+import com.fivlo.fivlo_backend.common.ai.dto.GoalAnalysisResponseDto;
 import com.fivlo.fivlo_backend.domain.task.dto.*;
 import com.fivlo.fivlo_backend.domain.task.service.TaskService;
 import com.fivlo.fivlo_backend.domain.user.entity.User;
@@ -14,6 +17,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.util.Map;
 
 /**
  * Task 컨트롤러
@@ -138,6 +142,29 @@ public class TaskController {
         log.info("Task 삭제 응답 완료 - userId: {}, taskId: {}", userDetails.getUser().getId(), taskId);
         
         return ResponseEntity.ok(response);
+    }
+
+    /** 목표 세분화
+     * HTTP : POST
+     * EndPoint : /api/v1/ai/goals
+     */
+    @PostMapping(Routes.AI_GOALS)
+    public ResponseEntity<GoalAnalysisResponseDto> analyzeGoalAndGetRecommendations(
+            @RequestBody GoalAnalysisRequestDto request) {
+
+        return ResponseEntity.ok(taskService.analyzeAndRecommendTasks(request));
+    }
+
+    /** 루틴 설정
+     * HTTP : POST
+     * EndPoint : /api/v1/ai/goals/tasks
+     */
+    @PostMapping(Routes.AI_GOALS_TASKS)
+    public ResponseEntity<String> addAiTasks(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @RequestBody AddAITaskRequestDto requestDto) {
+
+        return ResponseEntity.ok(taskService.addAiRecommendedTasks(userDetails.getUser().getId(), requestDto));
     }
 }
 

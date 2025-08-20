@@ -57,21 +57,38 @@ public class GeminiService {
 
     public String analyzeGoalAndRecommendTasks(String goalContent, String goalType, String startDate, String endDate) {
         StringBuilder prompt = new StringBuilder();
-        prompt.append("당신은 생산성 앱의 AI 어시스턴트입니다. 사용자의 목표를 분석하고 실행 가능한 Task들을 추천해주세요.\n\n")
-                .append("목표: ").append(goalContent).append("\n")
-                .append("목표 유형: ").append(goalType).append("\n");
+        prompt.append("당신은 계획 설계 전문가입니다. 다음 목표를 완료할 수 있도록 구체적인 단계를 제시해주세요.\n\n")
+                .append("- 목표: ").append(goalContent).append("\n")
+                .append("- 목표 유형: ").append(goalType).append("\n");
 
         if (startDate != null && endDate != null) {
-            prompt.append("기간: ").append(startDate).append(" ~ ").append(endDate).append("\n");
+            prompt.append("- 기간: ").append(startDate).append(" ~ ").append(endDate).append("\n");
         }
 
-        // 오직 JSON만 반환 지시 (백틱/마크다운 금지)
-        prompt.append("\n반드시 아래 JSON 스키마로만, 추가 텍스트 없이 응답하세요.\n")
+        prompt.append("응답은 반드시 아래 JSON 형식으로만, 다른 설명이나 마크다운 없이 제공해야 합니다.\n")
                 .append("{\n")
                 .append("  \"recommended_tasks\": [\n")
-                .append("    {\"content\": \"구체적인 Task 내용\", \"due_date\": \"YYYY-MM-DD\", \"repeat_type\": \"DAILY 또는 NONE\", \"end_date\": \"YYYY-MM-DD 또는 null\"}\n")
+                .append("    {\n")
+                .append("      \"content\": \"AI가 생성한 구체적인 Task 내용\",\n")
+                .append("      \"due_date\": \"YYYY-MM-DD\",\n")
+                .append("      \"repeat_type\": \"DAILY\",\n")
+                .append("      \"end_date\": \"YYYY-MM-DD 또는 null\"\n")
+                .append("    }\n")
                 .append("  ]\n")
                 .append("}\n");
+
+        prompt.append("- '목표'를 달성하기 위한 구체적이고 실천 가능한 Task를 3개에서 5개 사이로 생성하세요.\n");
+
+        if ("DEFINITE".equalsIgnoreCase(goalType)) {
+            prompt.append("- 각 Task의 'due_date'는 '").append(startDate).append("'와 '").append(endDate).append("' 사이에서 논리적으로 분배되어야 합니다.\n");
+            prompt.append("- 모든 Task의 'end_date'는 반드시 '").append(endDate).append("'로 설정하세요.\n");
+        } else { // INDEFINITE 또는 null인 경우
+            prompt.append("- 단계는 매주 반복할 수 있는 정도로 1주에 3~5개 정도로 제안하세요.\n");
+            prompt.append("- 모든 Task의 'end_date'는 반드시 null로 설정하세요.\n");
+        }
+
+        prompt.append("- 모든 Task의 'repeat_type'은 'DAILY'로 고정하세요.\n");
+        prompt.append("- 'content'에 들어갈 내용은 최대 10자 이내로 최대한 구체적으로 설정하세요.");
 
         return generateContent(prompt.toString());
     }

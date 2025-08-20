@@ -1,11 +1,21 @@
 package com.fivlo.fivlo_backend.domain.task.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fivlo.fivlo_backend.common.ai.GeminiService;
+import com.fivlo.fivlo_backend.common.ai.dto.AITaskDto;
+import com.fivlo.fivlo_backend.common.ai.dto.AddAITaskRequestDto;
+import com.fivlo.fivlo_backend.common.ai.dto.GoalAnalysisRequestDto;
+import com.fivlo.fivlo_backend.common.ai.dto.GoalAnalysisResponseDto;
 import com.fivlo.fivlo_backend.domain.category.entity.Category;
 import com.fivlo.fivlo_backend.domain.category.repository.CategoryRepository;
 import com.fivlo.fivlo_backend.domain.task.dto.*;
 import com.fivlo.fivlo_backend.domain.task.entity.Task;
 import com.fivlo.fivlo_backend.domain.task.repository.TaskRepository;
 import com.fivlo.fivlo_backend.domain.user.entity.User;
+import com.fivlo.fivlo_backend.domain.user.repository.UserRepository;
+import com.fivlo.fivlo_backend.security.CustomUserDetails;
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -13,6 +23,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.NoSuchElementException;
+import java.util.stream.Collectors;
 
 /**
  * Task 서비스
@@ -26,6 +38,9 @@ public class TaskService {
 
     private final TaskRepository taskRepository;
     private final CategoryRepository categoryRepository;
+    private final GeminiService geminiService;
+    private final ObjectMapper objectMapper;
+    private final UserRepository userRepository;
 
     /**
      * API 7: 특정 날짜의 Task 목록 조회
@@ -200,6 +215,74 @@ public class TaskService {
      */
     public long getCompletedTasksCount(User user, LocalDate date) {
         return taskRepository.countCompletedTasksByUserAndDate(user, date);
+    }
+
+    /**
+     * API 16 / 사용자의 목표를 분석하고 AI가 추천하는 Task 목록을 반환
+     */
+    @Transactional(readOnly = true)
+    public GoalAnalysisResponseDto analyzeAndRecommendTasks(GoalAnalysisRequestDto requestDto) {
+        String jsonResponse = geminiService.analyzeGoalAndRecommendTasks(
+                requestDto.getGoalContent(),
+                requestDto.getGoalType(),
+                requestDto.getStartDate(),
+                requestDto.getEndDate()
+        );
+        log.info("AI 응답 (JSON 문자열): {}", jsonResponse);
+
+        try {
+            return objectMapper.readValue(jsonResponse, GoalAnalysisResponseDto.class);
+        } catch (JsonProcessingException e) {
+            log.error("AI 응답 JSON 파싱 중 오류 발생", e);
+            throw new RuntimeException("AI 응답을 처리하는 중 오류가 발생했습니다.", e);
+        }
+    }
+
+    /**
+     * API 17 / AI가 추천한 Task 목록을 사용자의 Task 목록에 일괄 추가
+     */
+    @Transactional
+    public String addAiRecommendedTasks(Long userId, AddAITaskRequestDto requestDto) {
+        if (requestDto.getTasks() == null || requestDto.getTasks().isEmpty()) {
+            throw new NoSuchElementException("Task를 찾을 수 없습니다.");
+        }
+
+        // 1. userId를 사용하여 DB에서 User 엔티티를 조회합니다.
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("사용자를 찾을 수 없습니다. ID: " + userId));
+
+        // 2. 조회된 user 객체를 사용하여 Task 엔티티 리스트를 생성합니다.
+        List<Task> tasksToSave = requestDto.getTasks().stream()
+                .map(aiTaskDto -> convertToTaskEntity(user, aiTaskDto))
+                .collect(Collectors.toList());
+
+        taskRepository.saveAll(tasksToSave);
+
+        // 3. 로그를 수정하고, 명세에 맞는 메시지를 반환합니다.
+        log.info("사용자 ID {}를 위해 {}개의 AI 추천 Task를 저장했습니다.", userId, tasksToSave.size());
+        return "AI 추천 Task가 성공적으로 추가되었습니다.";
+    }
+
+    /**
+     * AiTaskDto를 Task 엔티티로 변환하는 헬퍼 메서드
+     */
+    private Task convertToTaskEntity(User user, AITaskDto dto) {
+        // 문자열 날짜를 LocalDate 객체로 변환 (null 체크 포함)
+        LocalDate dueDate = (dto.getDueDate() != null) ? LocalDate.parse(dto.getDueDate()) : null;
+        LocalDate endDate = (dto.getEndDate() != null) ? LocalDate.parse(dto.getEndDate()) : null;
+
+        // 문자열 repeatType을 Enum으로 변환
+        Task.RepeatType repeatType = Task.RepeatType.valueOf(dto.getRepeatType());
+
+        return Task.builder()
+                .user(user)
+                .content(dto.getContent())
+                .dueDate(dueDate)
+                .repeatType(repeatType)
+                .endDate(endDate)
+                .isLinkedToGrowthAlbum(dto.getIsLinkedToGrowthAlbum())
+                .isCompleted(false) // 기본값은 미완료
+                .build();
     }
 }
 
