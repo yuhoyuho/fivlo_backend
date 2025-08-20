@@ -58,11 +58,11 @@ public class ObooneService {
                 .orElseThrow(() -> new NoSuchElementException("해당 아이템을 찾을 수 없습니다."));
 
         if(userItemRepository.existsByUserAndObooniItem(user, item)) {
-            return new ObooneDto.PurchaseResponse("이미 가지고 있는 아이템입니다.", user.getTotalCoins());
+            throw new IllegalArgumentException("이미 가지고 있는 아이템입니다.");
         }
 
         if(!user.useCoins(item.getPrice())) {
-            return new ObooneDto.PurchaseResponse("코인이 부족합니다.", user.getTotalCoins());
+            throw new IllegalArgumentException("코인이 부족합니다.");
         }
 
         UserItem userItem = UserItem.builder()

@@ -62,8 +62,8 @@ public class ObooneController {
     @PatchMapping(Routes.OBOONE_EQUIP)
     public ResponseEntity<String> equipItem(
             @AuthenticationPrincipal CustomUserDetails userDetails,
-            @PathVariable Long itemId) {
-        return ResponseEntity.ok(obooneService.equipItem(userDetails.getUser().getId(), itemId));
+            @PathVariable Long userItemId) {
+        return ResponseEntity.ok(obooneService.equipItem(userDetails.getUser().getId(), userItemId));
     }
 
     /** 오분이 아이템 착용 해제
@@ -73,7 +73,7 @@ public class ObooneController {
     @PatchMapping(Routes.OBOONE_UNEQUIP)
     public ResponseEntity<String> unequipItem(
             @AuthenticationPrincipal CustomUserDetails userDetails,
-            @PathVariable Long itemId) {
-        return ResponseEntity.ok(obooneService.unequipItem(userDetails.getUser().getId(), itemId));
+            @PathVariable Long userItemId) {
+        return ResponseEntity.ok(obooneService.unequipItem(userDetails.getUser().getId(), userItemId));
     }
 }
