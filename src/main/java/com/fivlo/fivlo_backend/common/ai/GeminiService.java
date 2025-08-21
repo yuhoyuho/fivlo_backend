@@ -53,6 +53,33 @@ public class GeminiService {
         return CompletableFuture.supplyAsync(() -> generateContent(prompt));
     }
 
+
+    /** 일반 텍스트 응답용 동기 호출 (집중도 분석용) */
+    public String generatePlainText(String prompt) {
+        try {
+            if (prompt == null) throw new IllegalArgumentException("prompt is null");
+            logger.debug("Generating plain text, prompt preview: {}", prompt.substring(0, Math.min(100, prompt.length())));
+
+            // 일반 텍스트 응답을 위한 설정 (JSON 강제 없음)
+            GenerateContentConfig cfg = GenerateContentConfig.builder()
+                    .build(); // JSON 강제 제거
+
+            GenerateContentResponse res = client.models.generateContent(model, prompt, cfg);
+            String text = res.text();
+            logger.debug("Generated plain text length: {}", (text != null ? text.length() : 0));
+
+            if (text == null || text.trim().isEmpty()) {
+                return "분석 결과를 생성할 수 없습니다.";
+            }
+
+            return text.trim();
+
+        } catch (Exception e) {
+            logger.error("Error generating plain text with Gemini", e);
+            throw new RuntimeException("AI 텍스트 생성 중 오류가 발생했습니다: " + e.getMessage(), e);
+        }
+    }
+
     // === 프롬프트 도우미들 ===
 
     public String analyzeGoalAndRecommendTasks(String goalContent, String goalType, String startDate, String endDate) {
