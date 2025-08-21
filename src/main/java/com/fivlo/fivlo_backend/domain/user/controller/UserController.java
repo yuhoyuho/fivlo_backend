@@ -79,4 +79,15 @@ public class UserController {
         String message = userService.updateUserInfo(userDetails, dto);
         return ResponseEntity.status(200).body(message);
     }
+
+    /**
+     * HTTP 메서드 : POST
+     * 엔드포인트: /api/v1/users/attendance
+     */
+    @PostMapping(Routes.USERS_ATTENDANCE)
+    public ResponseEntity<String> attendance(
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+
+        return ResponseEntity.ok(userService.checkAttendanceAndReward(userDetails.getUser().getId()));
+    }
 }

@@ -7,6 +7,7 @@ import com.fivlo.fivlo_backend.domain.oboone.repository.ObooniItemRepository;
 import com.fivlo.fivlo_backend.domain.oboone.repository.UserItemRepository;
 import com.fivlo.fivlo_backend.domain.user.entity.User;
 import com.fivlo.fivlo_backend.domain.user.repository.UserRepository;
+import com.fivlo.fivlo_backend.domain.user.service.CoinTransactionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -25,6 +26,7 @@ public class ObooneService {
     private final ObooniItemRepository obooniItemRepository;
     private final UserItemRepository userItemRepository;
     private final UserRepository userRepository;
+    private final CoinTransactionService coinTransactionService;
 
     // API 36 : 상점 아이템 목록 조회
     @Transactional(readOnly = true)
@@ -64,6 +66,8 @@ public class ObooneService {
         if(!user.useCoins(item.getPrice())) {
             throw new IllegalArgumentException("코인이 부족합니다.");
         }
+
+        coinTransactionService.logTransaction(user, item.getPrice() * -1);
 
         UserItem userItem = UserItem.builder()
                 .user(user)

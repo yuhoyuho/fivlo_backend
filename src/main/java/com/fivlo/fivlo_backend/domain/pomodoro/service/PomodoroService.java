@@ -8,6 +8,7 @@ import com.fivlo.fivlo_backend.domain.pomodoro.repository.PomodoroSessionReposit
 import com.fivlo.fivlo_backend.domain.pomodoro.dto.CoinByPomodoroSessionResponse;
 import com.fivlo.fivlo_backend.domain.user.entity.User;
 import com.fivlo.fivlo_backend.domain.user.repository.UserRepository;
+import com.fivlo.fivlo_backend.domain.user.service.CoinTransactionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
@@ -25,6 +26,7 @@ public class PomodoroService {
     private final PomodoroSessionRepository pomodoroSessionRepository;
     private final PomodoroGoalRepository pomodoroGoalRepository;
     private final UserRepository userRepository;
+    private final CoinTransactionService coinTransactionService;
 
     @Transactional(readOnly = true)
     public PomodoroGoalListResponse findPomodoroGoals(Long id) {
@@ -148,6 +150,7 @@ public class PomodoroService {
         if(session.getIsCycleCompleted() && user.getIsPremium()) {
             user.addCoins(1);
             user.updateLastPomodoroCoinDate(today);
+            coinTransactionService.logTransaction(user, 1);
 
             return new CoinByPomodoroSessionResponse(user.getTotalCoins(), "코인이 성공적으로 지급되었습니다.");
         }
