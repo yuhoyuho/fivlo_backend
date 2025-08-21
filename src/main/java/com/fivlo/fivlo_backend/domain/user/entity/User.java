@@ -63,6 +63,9 @@ public class User {
     @Column(name = "last_reminder_coin_date")
     private LocalDate lastReminderCoinDate;
 
+    @Column(name = "fcm_token", length = 255)
+    private String fcmToken;
+
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -156,6 +159,10 @@ public class User {
     public void linkSocialAccount(String socialId, SocialProvider socialProvider) {
         this.socialId = socialId;
         this.socialProvider = socialProvider;
+    }
+
+    public void updateFcmToken(String fcmToken) {
+        this.fcmToken = fcmToken;
     }
 
     // ==================== Enum 클래스들 ====================

@@ -10,4 +10,6 @@ public interface ReminderRepository extends JpaRepository<ForgettingPreventionRe
     List<ForgettingPreventionReminder> findByUser(User user);
 
     List<ForgettingPreventionReminder> findByUserAndRepetitionDaysContaining(User user, String dayOfWeek);
+
+    List<ForgettingPreventionReminder> findByUserAndLocationNameIsNotNull(User user);
 }
