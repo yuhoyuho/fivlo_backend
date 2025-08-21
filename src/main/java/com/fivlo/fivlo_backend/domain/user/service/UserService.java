@@ -12,6 +12,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
@@ -25,6 +26,7 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final List<OAuth2TokenVerifier> tokenVerifiers;
+    private final CoinTransactionService coinTransactionService;
 
     /**
      * 이메일 회원가입 로직
@@ -135,5 +137,33 @@ public class UserService {
         String token = jwtTokenProvider.generateToken(user.getId());
 
         return new SocialLoginResponse(isNewUser, token, user.getId(), user.getOnboardingType());
+    }
+
+    /**
+     * 출석 시 코인 지급 처리 로직
+     */
+    @Transactional
+    public String checkAttendanceAndReward(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new NoSuchElementException("사용자를 찾을 수 없습니다."));
+
+        LocalDate today = LocalDate.now();
+        LocalDate lastAttendance = user.getLastAttendanceCoinDate();
+
+        // 마지막 출석일과 today 비교
+        if(lastAttendance != null && lastAttendance.isEqual(today)) {
+            return "이미 출석 코인을 받았습니다.";
+        }
+
+        // 출석 보상으로 코인 지급 (프리미엄 회원만)
+        if(user.getIsPremium()) {
+            user.addCoins(1);
+            coinTransactionService.logTransaction(user, 1);
+            user.updateLastAttendanceCoinDate(today);
+            return "출석을 하셨네요. 오분이가 코인을 드리겠습니다. 오늘도 파이!!";
+        }
+        else {
+            return "프리미엄 회원만 코인을 받을 수 있습니다.";
+        }
     }
 }

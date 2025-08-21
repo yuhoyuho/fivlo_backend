@@ -7,6 +7,7 @@ import com.fivlo.fivlo_backend.domain.reminder.repository.ReminderCompletionRepo
 import com.fivlo.fivlo_backend.domain.reminder.repository.ReminderRepository;
 import com.fivlo.fivlo_backend.domain.user.entity.User;
 import com.fivlo.fivlo_backend.domain.user.repository.UserRepository;
+import com.fivlo.fivlo_backend.domain.user.service.CoinTransactionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -24,6 +25,7 @@ public class ReminderService {
     private final UserRepository userRepository;
     private final ReminderRepository reminderRepository;
     private final ReminderCompletionRepository reminderCompletionRepository;
+    private final CoinTransactionService coinTransactionService;
 
     // API 49 : 망각방지 알림 생성
     @Transactional
@@ -146,6 +148,7 @@ public class ReminderService {
         if(allCompleted && user.getIsPremium() && (user.getLastReminderCoinDate() == null || user.getLastReminderCoinDate().isBefore(date) )) {
             user.addCoins(1);
             user.updateLastReminderCoinDate(date);
+            coinTransactionService.logTransaction(user, 1);
             coinAwarded = true;
         }
 

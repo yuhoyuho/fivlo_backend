@@ -63,6 +63,9 @@ public class User {
     @Column(name = "last_reminder_coin_date")
     private LocalDate lastReminderCoinDate;
 
+    @Column(name = "last_attendance_coin_date")
+    private LocalDate lastAttendanceCoinDate;
+
     @Column(name = "fcm_token", length = 255)
     private String fcmToken;
 
@@ -144,6 +147,13 @@ public class User {
      */
     public void updateLastReminderCoinDate(LocalDate date) {
         this.lastReminderCoinDate = date;
+    }
+
+    /**
+     * 출석 코인 지급일 업데이트
+     */
+    public void updateLastAttendanceCoinDate(LocalDate date) {
+        this.lastAttendanceCoinDate = date;
     }
 
     /**
