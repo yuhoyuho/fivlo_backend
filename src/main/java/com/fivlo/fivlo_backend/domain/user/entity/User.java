@@ -66,6 +66,13 @@ public class User {
     @Column(name = "last_attendance_coin_date")
     private LocalDate lastAttendanceCoinDate;
 
+    @Column(name = "last_login")
+    private LocalDate lastLogin;
+
+    @Column(name = "last_task_coin_date")
+    private LocalDate lastTaskCoinDate;
+
+
     @Column(name = "fcm_token", length = 255)
     private String fcmToken;
 
@@ -155,6 +162,21 @@ public class User {
     public void updateLastAttendanceCoinDate(LocalDate date) {
         this.lastAttendanceCoinDate = date;
     }
+
+    /**
+     * 마지막 로그인 날짜 업데이트
+     */
+    public void updateLastLogin(LocalDate date) {
+        this.lastLogin = date;
+    }
+
+    /**
+     * Task 코인 지급일 업데이트
+     */
+    public void updateLastTaskCoinDate(LocalDate date) {
+        this.lastTaskCoinDate = date;
+    }
+
 
     /**
      * 프리미엄 상태 변경

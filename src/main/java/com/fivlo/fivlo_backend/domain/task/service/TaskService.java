@@ -14,11 +14,15 @@ import com.fivlo.fivlo_backend.domain.task.entity.Task;
 import com.fivlo.fivlo_backend.domain.task.repository.TaskRepository;
 import com.fivlo.fivlo_backend.domain.user.entity.User;
 import com.fivlo.fivlo_backend.domain.user.repository.UserRepository;
+import com.fivlo.fivlo_backend.domain.user.service.CoinTransactionService;
+
 import com.fivlo.fivlo_backend.security.CustomUserDetails;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.security.access.AccessDeniedException;
+
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
@@ -40,6 +44,8 @@ public class TaskService {
     private final CategoryRepository categoryRepository;
     private final GeminiService geminiService;
     private final ObjectMapper objectMapper;
+    private final CoinTransactionService coinTransactionService;
+
     private final UserRepository userRepository;
 
     /**
@@ -284,5 +290,52 @@ public class TaskService {
                 .isCompleted(false) // 기본값은 미완료
                 .build();
     }
+
+    /**
+     * Task 완료 코인 지급
+     * 프리미엄 사용자가 Task를 완료했을 때 코인을 지급합니다.
+     */
+    @Transactional
+    public TaskCoinResponse earnTaskCoin(Long userId, TaskCoinRequest dto) {
+        log.info("Task 코인 지급 요청 - userId: {}, taskId: {}", userId, dto.taskId());
+
+        // 1. 사용자 조회
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new NoSuchElementException("사용자를 찾을 수 없습니다."));
+
+        // 2. Task 조회 및 권한 확인
+        Task task = taskRepository.findById(dto.taskId())
+                .orElseThrow(() -> new NoSuchElementException("해당 Task를 찾을 수 없습니다."));
+
+        if (!task.getUser().getId().equals(userId)) {
+            throw new AccessDeniedException("자신의 Task만 코인을 받을 수 있습니다.");
+        }
+
+        // 3. Task 완료 여부 확인
+        if (!task.getIsCompleted()) {
+            return new TaskCoinResponse(user.getTotalCoins(), "Task를 먼저 완료해주세요.");
+        }
+
+        // 4. 마지막 코인 지급일 확인 (일일 제한)
+        LocalDate today = LocalDate.now();
+        LocalDate lastCoinDate = user.getLastTaskCoinDate();
+
+        if (lastCoinDate != null && lastCoinDate.isEqual(today)) {
+            return new TaskCoinResponse(user.getTotalCoins(), "오늘은 이미 Task 코인을 지급받았습니다.");
+        }
+
+        // 5. 프리미엄 사용자 확인 및 코인 지급
+        if (user.getIsPremium()) {
+            user.addCoins(1);
+            user.updateLastTaskCoinDate(today);
+            coinTransactionService.logTransaction(user, 1);
+
+            log.info("Task 코인 지급 완료 - userId: {}, taskId: {}, totalCoins: {}", userId, dto.taskId(), user.getTotalCoins());
+            return new TaskCoinResponse(user.getTotalCoins(), "Task 완료! 오분이가 코인을 드려요 🎉");
+        } else {
+            return new TaskCoinResponse(user.getTotalCoins(), "프리미엄 회원만 코인을 받을 수 있습니다.");
+        }
+    }
+
 }
 

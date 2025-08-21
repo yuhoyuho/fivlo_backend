@@ -53,6 +53,7 @@ public class UserService {
                 .email(dto.email())
                 .password(encodedPassword)
                 .nickname(nickname)
+                .isPremium(true)
                 .build();
 
         User savedUser = userRepository.save(user);

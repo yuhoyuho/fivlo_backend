@@ -25,6 +25,8 @@ public class Routes {
     // ==================== Task 및 카테고리 관리 ====================
     public static final String TASKS_BASE = API_BASE + "/tasks";
     public static final String TASKS_COMPLETE = "/complete";  // {taskId}/complete
+    public static final String TASKS_COINS = TASKS_BASE + "/coins";  // Task 완료 코인 지급
+
     
     public static final String CATEGORIES_BASE = API_BASE + "/categories";
     

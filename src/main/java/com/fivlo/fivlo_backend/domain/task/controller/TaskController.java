@@ -166,5 +166,20 @@ public class TaskController {
 
         return ResponseEntity.ok(taskService.addAiRecommendedTasks(userDetails.getUser().getId(), requestDto));
     }
+
+    /**
+     * Task 완료 코인 지급
+     * HTTP 메서드: POST
+     * 엔드포인트: /api/v1/tasks/coins
+     */
+    @PostMapping(Routes.TASKS_COINS)
+    public ResponseEntity<TaskCoinResponse> earnTaskCoin(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @Valid @RequestBody TaskCoinRequest dto) {
+
+        TaskCoinResponse response = taskService.earnTaskCoin(userDetails.getUser().getId(), dto);
+        return ResponseEntity.ok(response);
+    }
+
 }
 
