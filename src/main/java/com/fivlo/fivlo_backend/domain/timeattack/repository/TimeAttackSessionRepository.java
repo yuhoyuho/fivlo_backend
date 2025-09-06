@@ -3,6 +3,7 @@ package com.fivlo.fivlo_backend.domain.timeattack.repository;
 import com.fivlo.fivlo_backend.domain.timeattack.entity.TimeAttackSession;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -13,6 +14,7 @@ import java.util.List;
 public interface TimeAttackSessionRepository extends JpaRepository<TimeAttackSession, Long> {
 
     // 페이지네이션/정렬은 Pageable로 받기 (컨트롤러 @PageableDefault 사용)
+    @EntityGraph(attributePaths = {"steps", "timeAttackGoal"})
     Page<TimeAttackSession> findByUser_Id(Long userId, Pageable pageable);
 
     // 리스트 용 정렬 메서드가 따로 필요하면 유지

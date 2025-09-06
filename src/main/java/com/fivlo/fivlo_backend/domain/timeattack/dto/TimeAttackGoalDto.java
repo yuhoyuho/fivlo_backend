@@ -6,12 +6,13 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.time.LocalDateTime;
 
 /**
  * 타임어택 목적 관련 DTO
- * 타임어택 목적의 요청/응답 데이터 전송을 위한 클래스들
+ * i18n 키 기반 다국어 지원과 사용자 커스텀 목적을 모두 지원
  */
 public class TimeAttackGoalDto {
 
@@ -24,11 +25,27 @@ public class TimeAttackGoalDto {
     public static class GoalRequest {
         
         /**
-         * 목적 이름
+         * 목적 이름 또는 i18n 키
+         * isPredefined가 true면 i18n 키 (예: "timeAttack.goal.outingPrep")
+         * isPredefined가 false면 사용자 입력 텍스트
          */
         @NotBlank(message = "목적 이름은 필수입니다")
         @Size(min = 1, max = 255, message = "목적 이름은 1자 이상 255자 이하여야 합니다")
         private String name;
+
+        /**
+         * 언어 코드 (AI 추천 요청 시 사용)
+         * ko: 한국어, en: 영어
+         */
+        @Pattern(regexp = "^(ko|en)$", message = "언어 코드는 'ko' 또는 'en'만 허용됩니다")
+        private String languageCode = "ko";  // 기본값: 한국어
+
+        /**
+         * 미리 정의된 목적 여부
+         * true: nameKey 사용 (i18n 처리)
+         * false: customName 사용 (사용자 입력)
+         */
+        private Boolean isPredefined = false;
     }
 
     /**
@@ -45,12 +62,16 @@ public class TimeAttackGoalDto {
         private Long id;
         
         /**
-         * 목적 이름
+         * 표시할 이름
+         * isPredefined가 true면 i18n 키 반환 (프론트에서 i18n 처리)
+         * isPredefined가 false면 사용자 입력 텍스트 반환
          */
         private String name;
         
         /**
          * 미리 정의된 목적 여부
+         * true: 프론트에서 name을 i18n 키로 처리
+         * false: name을 텍스트 그대로 표시
          */
         private Boolean isPredefined;
         

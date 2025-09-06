@@ -63,12 +63,17 @@ public class Routes {
     public static final String OBOONE_EQUIP = OBOONE_BASE + "/equip";
     public static final String OBOONE_UNEQUIP = OBOONE_BASE + "/unequip";
     
-    // ==================== 타임어택 기능 ====================
+    // ==================== 타임어택 기능 (API 41-48) ====================
     public static final String TIME_ATTACK_BASE = API_BASE + "/time-attack";
     public static final String TIME_ATTACK_GOALS = TIME_ATTACK_BASE + "/goals";
     public static final String TIME_ATTACK_RECOMMEND_STEPS = TIME_ATTACK_BASE + "/recommend-steps";
     public static final String TIME_ATTACK_SESSIONS = TIME_ATTACK_BASE + "/sessions";
-    public static final String TIME_ATTACK_STEPS = TIME_ATTACK_BASE + "/steps";
+    
+    // API 48: 마지막 추천 단계 조회 (AI 캐싱용)
+    public static final String TIME_ATTACK_GOALS_LAST_STEPS = TIME_ATTACK_GOALS + "/{goalId}/last-recommended-steps";
+    
+    // 제거된 API: 개별 Step 관리 기능은 세션 단위로 통합됨
+    // TIME_ATTACK_STEPS - 더 이상 개별 단계 관리하지 않음
     
     // ==================== 망각방지 알림 시스템 ====================
     public static final String GEO_BASE = API_BASE + "/geo";
@@ -102,8 +107,7 @@ public class Routes {
     
     // Time Attack 관련
     public static final String TIME_ATTACK_GOALS_BY_ID = TIME_ATTACK_GOALS + "/{goalId}";
-    public static final String TIME_ATTACK_STEPS_BY_ID = TIME_ATTACK_STEPS + "/{stepId}";
-    
+    // TIME_ATTACK_STEPS_BY_ID - 개별 단계 관리 API 제거로 삭제
     // Reminders 관련
     public static final String REMINDERS_BY_ID = REMINDERS_BASE + "/{reminderId}";
     public static final String REMINDERS_COMPLETE_BY_ID = REMINDERS_BASE + "/{reminderId}" + REMINDERS_COMPLETE;

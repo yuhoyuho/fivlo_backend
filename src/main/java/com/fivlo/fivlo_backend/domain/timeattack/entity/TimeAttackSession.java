@@ -10,6 +10,8 @@ import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 타임어택 세션 엔티티
@@ -44,6 +46,11 @@ public class TimeAttackSession {
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    // ==================== 연관관계 ====================
+    
+    @OneToMany(mappedBy = "timeAttackSession", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<TimeAttackStep> steps = new ArrayList<>();
 
     // ==================== 생성자 ====================
     

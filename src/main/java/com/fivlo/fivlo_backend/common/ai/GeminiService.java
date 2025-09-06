@@ -120,24 +120,57 @@ public class GeminiService {
         return generateContent(prompt.toString());
     }
 
-    public String recommendTimeAttackSteps(String goalName, Integer totalDurationInSeconds) {
+    public String recommendTimeAttackSteps(String goalName, Integer totalDurationInSeconds, String languageCode) {
         int totalMinutes = Math.max(0, (totalDurationInSeconds != null ? totalDurationInSeconds : 0) / 60);
-
-        StringBuilder prompt = new StringBuilder();
-        prompt.append("당신은 시간 관리 전문가입니다. 다음 활동을 효율적으로 완료할 수 있도록 단계별 일정을 추천해주세요.\n\n")
-                .append("활동: ").append(goalName).append("\n")
-                .append("총 시간: ").append(totalMinutes).append("분\n\n")
-                .append("오직 아래 JSON 형식으로만, 추가 텍스트/마크다운 없이 응답하세요.\n")
-                .append("{\n")
-                .append("  \"recommended_steps\": [\n")
-                .append("    { \"content\": \"단계별 활동 내용\", \"duration_in_seconds\": 0 }\n")
-                .append("  ]\n")
-                .append("}\n")
-                .append("- 단계는 논리적 순서를 가지며 3~8개로 제안하세요.\n")
-                .append("- 전체 단계의 시간 합은 정확히 ").append(totalDurationInSeconds).append("초가 되도록 분배하세요.\n");
-
-        return generateContent(prompt.toString());
+        
+        // 언어별 프롬프트 생성
+        String prompt = buildTimeAttackPrompt(goalName, totalMinutes, totalDurationInSeconds, languageCode);
+        
+        return generateContent(prompt);
     }
+    
+    // 기존 메서드 호환성 유지 (기본값: 한국어)
+    public String recommendTimeAttackSteps(String goalName, Integer totalDurationInSeconds) {
+        return recommendTimeAttackSteps(goalName, totalDurationInSeconds, "ko");
+    }
+    
+    /**
+     * 언어별 타임어택 프롬프트 생성
+     */
+    private String buildTimeAttackPrompt(String goalName, int totalMinutes, int totalDurationInSeconds, String languageCode) {
+        StringBuilder prompt = new StringBuilder();
+        
+        if ("en".equalsIgnoreCase(languageCode)) {
+            // 영어 프롬프트
+            prompt.append("You are a time management expert. Please recommend step-by-step schedule to efficiently complete the following activity.\n\n")
+                    .append("Activity: ").append(goalName).append("\n")
+                    .append("Total time: ").append(totalMinutes).append(" minutes\n\n")
+                    .append("Please respond only in the JSON format below, without any additional text or markdown.\n")
+                    .append("{\n")
+                    .append("  \"recommended_steps\": [\n")
+                    .append("    { \"content\": \"Step-by-step activity content\", \"duration_in_seconds\": 0 }\n")
+                    .append("  ]\n")
+                    .append("}\n")
+                    .append("- Steps should be in logical order with 3-8 suggestions.\n")
+                    .append("- The total time of all steps should be exactly ").append(totalDurationInSeconds).append(" seconds.\n");
+        } else {
+            // 한국어 프롬프트 (기본값)
+            prompt.append("당신은 시간 관리 전문가입니다. 다음 활동을 효율적으로 완료할 수 있도록 단계별 일정을 추천해주세요.\n\n")
+                    .append("활동: ").append(goalName).append("\n")
+                    .append("총 시간: ").append(totalMinutes).append("분\n\n")
+                    .append("오직 아래 JSON 형식으로만, 추가 텍스트/마크다운 없이 응답하세요.\n")
+                    .append("{\n")
+                    .append("  \"recommended_steps\": [\n")
+                    .append("    { \"content\": \"단계별 활동 내용\", \"duration_in_seconds\": 0 }\n")
+                    .append("  ]\n")
+                    .append("}\n")
+                    .append("- 단계는 논리적 순서를 가지며 3~8개로 제안하세요.\n")
+                    .append("- 전체 단계의 시간 합은 정확히 ").append(totalDurationInSeconds).append("초가 되도록 분배하세요.\n");
+        }
+        
+        return prompt.toString();
+    }
+    
 
     public String generateMonthlyAnalysisSuggestions(String analysisData) {
         StringBuilder prompt = new StringBuilder();

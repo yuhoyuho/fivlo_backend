@@ -11,6 +11,7 @@ import com.fivlo.fivlo_backend.domain.timeattack.dto.TimeAttackStepDto;
 import com.fivlo.fivlo_backend.domain.timeattack.entity.TimeAttackGoal;
 import com.fivlo.fivlo_backend.domain.timeattack.entity.TimeAttackSession;
 import com.fivlo.fivlo_backend.domain.timeattack.entity.TimeAttackStep;
+import com.fivlo.fivlo_backend.domain.timeattack.constants.PredefinedTimeAttackGoals;
 import com.fivlo.fivlo_backend.domain.timeattack.repository.TimeAttackGoalRepository;
 import com.fivlo.fivlo_backend.domain.timeattack.repository.TimeAttackSessionRepository;
 import com.fivlo.fivlo_backend.domain.timeattack.repository.TimeAttackStepRepository;
@@ -24,8 +25,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.time.LocalDateTime;
 
 @Slf4j
 @Service
@@ -39,12 +42,25 @@ public class TimeAttackService {
     private final UserRepository userRepository;
     private final GeminiService geminiService;
     private final ObjectMapper objectMapper;
+    private final TimeAttackGoalInitService goalInitService;
 
-    // ==================== 목적 관리 ====================
+    // 메모리 기반 캐시 (단순 구현 - 추후 Redis로 교체 가능)
+    private final Map<String, TimeAttackAIDto.CacheEntry> recommendationCache = new ConcurrentHashMap<>();
+    
+    // 캐시 TTL: 1시간
+    private static final long CACHE_TTL_HOURS = 1;
 
+    // ==================== 목적 관리 (i18n 지원) ====================
+
+    /**
+     * 사용자의 모든 타임어택 목적 조회
+     */
     public TimeAttackGoalDto.GoalListResponse getAllGoals(Long userId) {
         log.debug("Getting all time attack goals for user: {}", userId);
-        validateUser(userId);
+        User user = validateUser(userId);
+
+        // 미리 정의된 목적들이 있는지 확인하고 없으면 생성
+        goalInitService.ensureUserHasPredefinedGoals(user);
 
         List<TimeAttackGoal> goals = timeAttackGoalRepository.findByUser_IdOrderByCreatedAtDesc(userId);
         long totalCount = goals.size();
@@ -56,30 +72,55 @@ public class TimeAttackService {
         return new TimeAttackGoalDto.GoalListResponse(goalResponses, totalCount);
     }
 
+    /**
+     * 새로운 타임어택 목적 생성 (i18n 키 또는 사용자 텍스트)
+     */
     @Transactional
     public TimeAttackGoalDto.GoalResponse createGoal(Long userId, TimeAttackGoalDto.GoalRequest request) {
-        log.debug("Creating time attack goal for user: {}, name: {}", userId, request.getName());
+        log.debug("Creating time attack goal for user: {}, name: {}, isPredefined: {}", 
+                 userId, request.getName(), request.getIsPredefined());
 
         User user = validateUser(userId);
 
-        // 정확 일치 중복 체크
-        if (timeAttackGoalRepository.existsByUser_IdAndNameIgnoreCase(userId, request.getName())) {
-            log.warn("Duplicate goal name attempted: {} for user: {}", request.getName(), userId);
-            throw new IllegalArgumentException("이미 동일한 이름의 목적이 존재합니다: " + request.getName());
+        // 미리 정의된 목적 검증
+        if (request.getIsPredefined() && !goalInitService.isValidPredefinedGoal(request.getName())) {
+            log.warn("Invalid predefined goal attempted: {} for user: {}", request.getName(), userId);
+            throw new IllegalArgumentException("유효하지 않은 미리 정의된 목적입니다: " + request.getName());
         }
 
-        TimeAttackGoal goal = TimeAttackGoal.builder()
-                .user(user)
-                .name(request.getName())
-                .isPredefined(false)
-                .build();
+        // 타입별 중복 체크
+        validateGoalDuplication(userId, request.getName(), request.getIsPredefined(), null);
+
+        TimeAttackGoal goal;
+        
+        if (request.getIsPredefined()) {
+            // 미리 정의된 목적 (i18n 키)
+            goal = TimeAttackGoal.builder()
+                    .user(user)
+                    .nameKey(request.getName())
+                    .customName(null)
+                    .isPredefined(true)
+                    .build();
+        } else {
+            // 사용자 추가 목적
+            goal = TimeAttackGoal.builder()
+                    .user(user)
+                    .nameKey(null)
+                    .customName(request.getName())
+                    .isPredefined(false)
+                    .build();
+        }
 
         TimeAttackGoal savedGoal = timeAttackGoalRepository.save(goal);
-        log.info("Created time attack goal: {} for user: {}", savedGoal.getId(), userId);
+        log.info("Created time attack goal: {} for user: {} (isPredefined: {})", 
+                savedGoal.getId(), userId, savedGoal.getIsPredefined());
 
         return convertToGoalResponse(savedGoal);
     }
 
+    /**
+     * 타임어택 목적 수정
+     */
     @Transactional
     public TimeAttackGoalDto.GoalResponse updateGoal(Long userId, Long goalId, TimeAttackGoalDto.GoalRequest request) {
         log.debug("Updating time attack goal: {} for user: {}, new name: {}", goalId, userId, request.getName());
@@ -92,19 +133,21 @@ public class TimeAttackService {
             throw new IllegalArgumentException("미리 정의된 목적은 수정할 수 없습니다.");
         }
 
-        // 정확 일치 중복 체크 (자기 자신 제외)
-        if (timeAttackGoalRepository.existsByUser_IdAndNameIgnoreCaseAndIdNot(userId, request.getName(), goalId)) {
-            log.warn("Duplicate goal name attempted: {} for user: {}", request.getName(), userId);
-            throw new IllegalArgumentException("이미 동일한 이름의 목적이 존재합니다: " + request.getName());
-        }
+        // 사용자 추가 목적만 수정 가능 (customName 업데이트)
+        validateGoalDuplication(userId, request.getName(), false, goalId);
 
-        goal.updateName(request.getName());
-        TimeAttackGoal updatedGoal = timeAttackGoalRepository.save(goal);
+        goal.updateCustomName(request.getName());
+        
+        // 캐시 무효화 (목적 이름이 변경되었으므로)
+        invalidateGoalCache(goalId);
+        
         log.info("Updated time attack goal: {} for user: {}", goalId, userId);
-
-        return convertToGoalResponse(updatedGoal);
+        return convertToGoalResponse(goal);
     }
 
+    /**
+     * 타임어택 목적 삭제
+     */
     @Transactional
     public void deleteGoal(Long userId, Long goalId) {
         log.debug("Deleting time attack goal: {} for user: {}", goalId, userId);
@@ -117,51 +160,340 @@ public class TimeAttackService {
             throw new IllegalArgumentException("미리 정의된 목적은 삭제할 수 없습니다.");
         }
 
-        // 세션 존재 여부 빠른 체크
-        if (timeAttackSessionRepository.existsByTimeAttackGoal_Id(goalId)) {
-            log.warn("Attempted to delete goal with existing sessions: {} by user: {}", goalId, userId);
-            throw new IllegalArgumentException("해당 목적을 사용하는 세션이 존재하여 삭제할 수 없습니다.");
-        }
+        // 캐시 무효화 (목적이 삭제되므로)
+        invalidateGoalCache(goalId);
 
         timeAttackGoalRepository.delete(goal);
         log.info("Deleted time attack goal: {} for user: {}", goalId, userId);
     }
 
-    // ==================== AI 추천 ====================
+    // ==================== AI 추천 (캐싱 지원) ====================
 
-    public TimeAttackAIDto.RecommendStepsResponse recommendSteps(TimeAttackAIDto.RecommendStepsRequest request) {
-        log.debug("Requesting AI step recommendation for goal: {}, duration: {}s",
-                request.getGoalName(), request.getTotalDurationInSeconds());
+    /**
+     * AI 기반 단계 추천 (goalId 기반 + 언어별 요청 + 캐싱)
+     */
+    public TimeAttackAIDto.RecommendStepsResponse recommendSteps(Long userId, TimeAttackAIDto.RecommendStepsRequest request) {
+        log.debug("Requesting AI step recommendation for goalId: {}, duration: {}s, language: {}", 
+                 request.getGoalId(), request.getTotalDurationInSeconds(), request.getLanguageCode());
 
         try {
-            String aiResponseJson = geminiService.recommendTimeAttackSteps(
-                    request.getGoalName(),
-                    request.getTotalDurationInSeconds()
+            // 1. goalId로 목적 조회 및 사용자 권한 확인
+            validateUser(userId);
+            TimeAttackGoal goal = findGoalByIdAndUserId(request.getGoalId(), userId);
+            String goalName = goal.getDisplayName();
+            
+            log.debug("Found goal: {} (ID: {}) for user: {}", goalName, request.getGoalId(), userId);
+
+            // 2. 캐시 확인 먼저! (goalId 기반)
+            String cacheKey = TimeAttackAIDto.CacheEntry.generateCacheKey(request.getGoalId(), request.getLanguageCode());
+            
+            TimeAttackAIDto.CacheEntry cachedEntry = recommendationCache.get(cacheKey);
+            
+            // 3. 유효한 캐시가 있으면 바로 반환
+            if (cachedEntry != null && !cachedEntry.isExpired()) {
+                log.debug("Found valid cache for goalId: {}, language: {}", request.getGoalId(), request.getLanguageCode());
+                return new TimeAttackAIDto.RecommendStepsResponse(
+                        cachedEntry.getRecommendedSteps(),
+                        cachedEntry.getRecommendedSteps().size(),
+                        cachedEntry.getTotalDurationInSeconds(),
+                        "AI 단계 추천이 완료되었습니다. (캐시에서 조회)"
+                );
+            }
+
+            // 4. 캐시 없음 - AI 호출 (goalName으로 추천 받기)
+            String jsonResponse = geminiService.recommendTimeAttackSteps(
+                goalName,  // ← AI에게는 실제 활동 이름 전달
+                request.getTotalDurationInSeconds(),
+                request.getLanguageCode()
             );
 
-            log.debug("Received AI response: {}", aiResponseJson);
+            // 5. JSON 파싱
+            AITimeAttackResponse aiResponse = objectMapper.readValue(jsonResponse, AITimeAttackResponse.class);
 
-            AITimeAttackResponse aiResponse = objectMapper.readValue(aiResponseJson, AITimeAttackResponse.class);
+            List<TimeAttackAIDto.RecommendedStep> steps = aiResponse.getRecommendedSteps().stream()
+                    .map(step -> new TimeAttackAIDto.RecommendedStep(
+                            step.getContent(),
+                            step.getDurationInSeconds(),
+                            0  // recommendedOrder는 나중에 설정
+                    ))
+                    .toList();
 
-            TimeAttackAIDto.RecommendStepsResponse response =
-                    TimeAttackAIDto.AIResponseConverter.convertFromAIResponse(aiResponse, request.getGoalName());
+            TimeAttackAIDto.RecommendStepsResponse response = new TimeAttackAIDto.RecommendStepsResponse(
+                    steps, 
+                    steps.size(), 
+                    steps.stream().mapToInt(TimeAttackAIDto.RecommendedStep::getDurationInSeconds).sum(),
+                    "AI 단계 추천이 완료되었습니다."
+            );
 
-            log.info("Successfully generated {} AI-recommended steps for goal: {}",
-                    response.getTotalSteps(), request.getGoalName());
+            // 6. 응답을 캐시에 저장! (goalId 기반)
+            cacheRecommendation(
+                request.getGoalId(), 
+                goalName,
+                response, 
+                request.getLanguageCode(), 
+                request.getTotalDurationInSeconds()
+            );
 
             return response;
 
-        } catch (JsonProcessingException e) {
-            log.error("Failed to parse AI response JSON for goal: {}", request.getGoalName(), e);
-            throw new RuntimeException("AI 응답 처리 중 오류가 발생했습니다: " + e.getMessage(), e);
         } catch (Exception e) {
-            log.error("Failed to get AI recommendation for goal: {}", request.getGoalName(), e);
-            throw new RuntimeException("AI 단계 추천 중 오류가 발생했습니다: " + e.getMessage(), e);
+            log.error("Failed to get AI recommendation for goalId: {}", request.getGoalId(), e);
+            throw new RuntimeException("AI 추천을 가져오는데 실패했습니다: " + e.getMessage());
         }
     }
 
-    // ==================== 세션 관리 ====================
+    /**
+     * 마지막 추천 단계 조회 (API 48 - 캐싱)
+     */
+    public TimeAttackAIDto.CachedStepsResponse getLastRecommendedSteps(Long userId, Long goalId, String languageCode) {
+        log.debug("Getting last recommended steps for goal: {}, user: {}, language: {}", goalId, userId, languageCode);
 
+        // 사용자 및 목적 검증
+        validateUser(userId);
+        TimeAttackGoal goal = findGoalByIdAndUserId(goalId, userId);
+
+        // 캐시 키 생성 (goalId 기반 - API 45와 동일)
+        String cacheKey = TimeAttackAIDto.CacheEntry.generateCacheKey(goalId, languageCode);
+        
+        // 캐시 조회
+        TimeAttackAIDto.CacheEntry cachedEntry = recommendationCache.get(cacheKey);
+        
+        if (cachedEntry != null && !cachedEntry.isExpired()) {
+            log.debug("Found valid cache for goal: {}, language: {}", goalId, languageCode);
+            return new TimeAttackAIDto.CachedStepsResponse(
+                    goalId,
+                    goal.getDisplayName(),
+                    cachedEntry.getRecommendedSteps(),
+                    cachedEntry.getRecommendedSteps().size(),
+                    cachedEntry.getTotalDurationInSeconds(),
+                    languageCode,
+                    cachedEntry.getCreatedAt(),
+                    false
+            );
+        }
+
+        // 캐시 없음 또는 만료됨
+        log.debug("No valid cache found for goal: {}, language: {}", goalId, languageCode);
+        
+        return new TimeAttackAIDto.CachedStepsResponse(
+                goalId,
+                goal.getDisplayName(),
+                List.of(),
+                0,
+                0,
+                languageCode,
+                null,
+                true
+        );
+    }
+
+    /**
+     * AI 추천 결과를 캐시에 저장
+     */
+    public void cacheRecommendation(Long goalId, String goalName, TimeAttackAIDto.RecommendStepsResponse response, 
+                                   String languageCode, Integer totalDurationInSeconds) {
+        log.debug("Caching recommendation for goal: {}, language: {}", goalId, languageCode);
+
+        String cacheKey = TimeAttackAIDto.CacheEntry.generateCacheKey(goalId, languageCode);
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime expiresAt = now.plusHours(CACHE_TTL_HOURS);
+
+        TimeAttackAIDto.CacheEntry entry = new TimeAttackAIDto.CacheEntry(
+                cacheKey,
+                goalName,
+                response.getRecommendedSteps(),
+                languageCode,
+                totalDurationInSeconds,
+                now,
+                expiresAt
+        );
+
+        recommendationCache.put(cacheKey, entry);
+        
+        // 만료된 캐시 정리 (간단한 구현)
+        cleanExpiredCache();
+        
+        log.info("Cached recommendation for goal: {}, language: {}, expires at: {}", goalId, languageCode, expiresAt);
+    }
+
+    /**
+     * 만료된 캐시 정리
+     */
+    private void cleanExpiredCache() {
+        recommendationCache.entrySet().removeIf(entry -> entry.getValue().isExpired());
+    }
+
+    /**
+     * 특정 목적의 캐시 삭제 (목적 수정/삭제 시 사용)
+     */
+    private void invalidateGoalCache(Long goalId) {
+        List<String> keysToRemove = recommendationCache.keySet().stream()
+                .filter(key -> key.contains("goal:" + goalId + ":"))
+                .toList();
+        
+        keysToRemove.forEach(recommendationCache::remove);
+        log.debug("Invalidated cache for goal: {}, removed {} entries", goalId, keysToRemove.size());
+    }
+
+    // ==================== 유틸리티 메서드 ====================
+
+    /**
+     * 목적 중복 검증 (타입별 분리)
+     */
+    private void validateGoalDuplication(Long userId, String name, Boolean isPredefined, Long excludeId) {
+        boolean isDuplicated;
+        
+        if (isPredefined) {
+            // 미리 정의된 목적: nameKey 중복 체크
+            if (excludeId != null) {
+                isDuplicated = timeAttackGoalRepository.existsByUser_IdAndNameKeyAndIsPredefinedAndIdNot(
+                    userId, name, true, excludeId);
+            } else {
+                isDuplicated = timeAttackGoalRepository.existsByUser_IdAndNameKeyAndIsPredefined(
+                    userId, name, true);
+            }
+        } else {
+            // 사용자 추가 목적: customName 중복 체크 (대소문자 무시)
+            if (excludeId != null) {
+                isDuplicated = timeAttackGoalRepository.existsByUser_IdAndCustomNameIgnoreCaseAndIsPredefinedAndIdNot(
+                    userId, name, false, excludeId);
+            } else {
+                isDuplicated = timeAttackGoalRepository.existsByUser_IdAndCustomNameIgnoreCaseAndIsPredefined(
+                    userId, name, false);
+            }
+        }
+
+        if (isDuplicated) {
+            String goalType = isPredefined ? "미리 정의된 목적" : "사용자 추가 목적";
+            log.warn("Duplicate goal name attempted: {} for user: {} ({})", name, userId, goalType);
+            throw new IllegalArgumentException("이미 동일한 이름의 목적이 존재합니다: " + name);
+        }
+    }
+
+    /**
+     * 엔티티를 응답 DTO로 변환 (i18n 지원)
+     */
+    private TimeAttackGoalDto.GoalResponse convertToGoalResponse(TimeAttackGoal goal) {
+        return new TimeAttackGoalDto.GoalResponse(
+                goal.getId(),
+                goal.getDisplayName(),  // nameKey 또는 customName 반환
+                goal.getIsPredefined(),
+                goal.getCreatedAt(),
+                goal.getUpdatedAt()
+        );
+    }
+
+    /**
+     * goalName과 displayName을 정규화하여 일관된 캐시 키 생성
+     */
+    private String generateCacheKeyForGoalName(String goalName, String languageCode) {
+        // goalName을 displayName으로 변환 (미리 정의된 목적의 경우)
+        String normalizedGoalName = normalizeGoalName(goalName);
+        return TimeAttackAIDto.CacheEntry.generateCacheKey(
+            normalizedGoalName.hashCode() + 0L, 
+            languageCode
+        );
+    }
+
+    /**
+     * goalName을 displayName으로 정규화
+     */
+    private String normalizeGoalName(String goalName) {
+        // 미리 정의된 목적인지 확인하고 nameKey로 변환
+        for (PredefinedTimeAttackGoals.Goal predefinedGoal : PredefinedTimeAttackGoals.getAllPredefinedGoals()) {
+            if (goalName.equals(predefinedGoal.getKoreanName()) || goalName.equals(predefinedGoal.getEnglishName())) {
+                return predefinedGoal.getNameKey(); // displayName을 nameKey로 변환
+            }
+        }
+        return goalName; // 사용자 커스텀 목적인 경우 그대로 반환
+    }
+
+    /**
+     * AI 추천 결과를 캐시에 저장 (goalName 기반)
+     */
+    private void cacheRecommendationByGoalName(String goalName, TimeAttackAIDto.RecommendStepsResponse response, 
+                                              String languageCode, Integer totalDurationInSeconds) {
+        log.debug("Caching recommendation for goalName: {}, language: {}", goalName, languageCode);
+
+        String cacheKey = generateCacheKeyForGoalName(goalName, languageCode);
+        
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime expiresAt = now.plusHours(CACHE_TTL_HOURS);
+
+        TimeAttackAIDto.CacheEntry entry = new TimeAttackAIDto.CacheEntry(
+                cacheKey,
+                goalName,
+                response.getRecommendedSteps(),
+                languageCode,
+                totalDurationInSeconds,
+                now,
+                expiresAt
+        );
+
+        recommendationCache.put(cacheKey, entry);
+        
+        // 만료된 캐시 정리 (간단한 구현)
+        cleanExpiredCache();
+        
+        log.info("Cached recommendation for goalName: {}, language: {}, expires at: {}", goalName, languageCode, expiresAt);
+    }
+
+    /**
+     * goalName으로 goalId 찾기 (캐시 키 통일을 위해)
+     */
+    private Long findGoalIdByGoalName(String goalName) {
+        // 미리 정의된 목적인지 확인
+        for (PredefinedTimeAttackGoals.Goal predefinedGoal : PredefinedTimeAttackGoals.getAllPredefinedGoals()) {
+            if (goalName.equals(predefinedGoal.getKoreanName()) || goalName.equals(predefinedGoal.getEnglishName())) {
+                // 미리 정의된 목적의 경우 - 모든 사용자에서 찾기 (임시 구현)
+                List<TimeAttackGoal> allGoals = timeAttackGoalRepository.findAll();
+                for (TimeAttackGoal goal : allGoals) {
+                    if (goal.getIsPredefined() && predefinedGoal.getNameKey().equals(goal.getNameKey())) {
+                        return goal.getId();
+                    }
+                }
+                return goalName.hashCode() + 1000000L; // 찾을 수 없으면 고유한 임시 ID
+            }
+        }
+        
+        // 사용자 커스텀 목적인 경우 - 모든 사용자에서 찾기 (임시 구현)
+        List<TimeAttackGoal> allGoals = timeAttackGoalRepository.findAll();
+        for (TimeAttackGoal goal : allGoals) {
+            if (!goal.getIsPredefined() && goalName.equals(goal.getCustomName())) {
+                return goal.getId();
+            }
+        }
+        
+        return goalName.hashCode() + 2000000L; // 찾을 수 없으면 고유한 임시 ID
+    }
+
+    /**
+     * 사용자 유효성 검증
+     */
+    private User validateUser(Long userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> {
+                    log.warn("User not found: {}", userId);
+                    return new IllegalArgumentException("사용자를 찾을 수 없습니다: " + userId);
+                });
+    }
+
+    /**
+     * 목적 조회 및 권한 검증
+     */
+    private TimeAttackGoal findGoalByIdAndUserId(Long goalId, Long userId) {
+        return timeAttackGoalRepository.findByIdAndUser_Id(goalId, userId)
+                .orElseThrow(() -> {
+                    log.warn("Goal not found or access denied: goalId={}, userId={}", goalId, userId);
+                    return new IllegalArgumentException("목적을 찾을 수 없거나 접근 권한이 없습니다.");
+                });
+    }
+
+    // ==================== 세션 관리 (기존 로직 유지) ====================
+
+    /**
+     * 타임어택 세션 시작
+     */
     @Transactional
     public TimeAttackSessionDto.SessionResponse startSession(Long userId, TimeAttackSessionDto.SessionStartRequest request) {
         log.debug("Starting time attack session for user: {}, goal: {}", userId, request.getGoalId());
@@ -169,15 +501,15 @@ public class TimeAttackService {
         User user = validateUser(userId);
         TimeAttackGoal goal = findGoalByIdAndUserId(request.getGoalId(), userId);
 
-        // 단계별 시간 합계 검증 (요청 기준)
+        // 단계별 시간 총합 검증
         int totalStepDuration = request.getSteps().stream()
-                .mapToInt(step -> step.getDurationInSeconds() != null ? step.getDurationInSeconds() : 0)
+                .mapToInt(TimeAttackStepDto.StepRequest::getDurationInSeconds)
                 .sum();
 
-        if (Math.abs(totalStepDuration - request.getTotalDurationInSeconds()) > 60) { // 1분 오차 허용
-            log.warn("Step duration mismatch: total={}, steps={} for user: {}",
+        if (totalStepDuration != request.getTotalDurationInSeconds()) {
+            log.warn("Time mismatch: expected={}, actual={} for user: {}", 
                     request.getTotalDurationInSeconds(), totalStepDuration, userId);
-            throw new IllegalArgumentException("단계별 시간의 합계가 총 목표 시간과 일치하지 않습니다.");
+            throw new IllegalArgumentException("단계별 시간의 총합이 설정한 목표 시간과 일치하지 않습니다.");
         }
 
         // 세션 생성
@@ -189,9 +521,8 @@ public class TimeAttackService {
                 .build();
 
         TimeAttackSession savedSession = timeAttackSessionRepository.save(session);
-        log.debug("Created session: {} for user: {}", savedSession.getId(), userId);
 
-        // 단계들 생성 (요청 순서대로 1..N)
+        // 단계 생성
         List<TimeAttackStep> steps = IntStream.range(0, request.getSteps().size())
                 .mapToObj(i -> {
                     TimeAttackStepDto.StepRequest stepRequest = request.getSteps().get(i);
@@ -205,39 +536,42 @@ public class TimeAttackService {
                 .toList();
 
         List<TimeAttackStep> savedSteps = timeAttackStepRepository.saveAll(steps);
-        log.debug("Created {} steps for session: {}", savedSteps.size(), savedSession.getId());
 
-        log.info("Successfully started time attack session: {} for user: {}", savedSession.getId(), userId);
+        log.info("Created time attack session: {} with {} steps for user: {}", 
+                savedSession.getId(), steps.size(), userId);
 
-        return convertToSessionResponse(savedSession, savedSteps);
+        // SessionResponse 생성 - 실제 생성자에 맞게 수정
+        return new TimeAttackSessionDto.SessionResponse(
+                savedSession.getId(),
+                goal.getDisplayName(),
+                savedSession.getTotalDurationInSeconds(),
+                savedSession.getIsCompleted(),
+                convertToStepResponses(savedSteps),
+                savedSession.getCreatedAt()
+        );
     }
 
+    /**
+     * 타임어택 세션 기록 조회
+     */
     public TimeAttackSessionDto.SessionListResponse getSessionHistory(Long userId, Pageable pageable) {
         log.debug("Getting session history for user: {}", userId);
+        
         validateUser(userId);
-
-        // ✅ 레포 시그니처 교체: 정렬/페이징은 Pageable로
-        Page<TimeAttackSession> sessionPage =
-                timeAttackSessionRepository.findByUser_Id(userId, pageable);
-
-        long completedCount = timeAttackSessionRepository.countByUser_IdAndIsCompleted(userId, true);
-
-        List<Long> sessionIds = sessionPage.getContent().stream()
-                .map(TimeAttackSession::getId)
-                .toList();
-
-        // ✅ 레포 시그니처 교체 (N+1 완화용 일괄 로드)
-        final Map<Long, List<TimeAttackStep>> stepsBySession =
-                sessionIds.isEmpty()
-                        ? Map.of()
-                        : timeAttackStepRepository
-                        .findByTimeAttackSession_IdInOrderByTimeAttackSession_IdAscStepOrderAsc(sessionIds)
-                        .stream()
-                        .collect(Collectors.groupingBy(s -> s.getTimeAttackSession().getId()));
+        Page<TimeAttackSession> sessionPage = timeAttackSessionRepository.findByUser_Id(userId, pageable);
 
         List<TimeAttackSessionDto.SessionResponse> sessionResponses = sessionPage.getContent().stream()
-                .map(session -> convertToSessionResponse(session, stepsBySession.getOrDefault(session.getId(), List.of())))
+                .map(session -> new TimeAttackSessionDto.SessionResponse(
+                        session.getId(),
+                        session.getTimeAttackGoal().getDisplayName(),  // i18n 키 또는 커스텀 이름
+                        session.getTotalDurationInSeconds(),
+                        session.getIsCompleted(),
+                        convertToStepResponses(session.getSteps() != null ? session.getSteps() : List.of()), // 단계 포함 (UX 개선)
+                        session.getCreatedAt()
+                ))
                 .toList();
+
+        long completedCount = timeAttackSessionRepository.countByUser_IdAndIsCompleted(userId, true);
 
         return new TimeAttackSessionDto.SessionListResponse(
                 sessionResponses,
@@ -246,218 +580,13 @@ public class TimeAttackService {
         );
     }
 
-    @Transactional
-    public TimeAttackSessionDto.SessionResponse completeSession(
-            Long userId, Long sessionId, TimeAttackSessionDto.SessionCompleteRequest request) {
+    // ==================== 유틸리티 메서드 ====================
 
-        log.debug("Completing session: {} for user: {}", sessionId, userId);
-        validateUser(userId);
-
-        TimeAttackSession session = findSessionByIdAndUserId(sessionId, userId);
-        session.updateCompletionStatus(request.getIsCompleted());
-        TimeAttackSession updatedSession = timeAttackSessionRepository.save(session);
-
-        // ✅ 레포 시그니처 교체
-        List<TimeAttackStep> steps =
-                timeAttackStepRepository.findByTimeAttackSession_IdOrderByStepOrderAsc(sessionId);
-
-        log.info("Updated session completion status: {} for session: {}", request.getIsCompleted(), sessionId);
-
-        return convertToSessionResponse(updatedSession, steps);
-    }
-
-    // ==================== 단계 관리 ====================
-
-    @Transactional
-    public TimeAttackStepDto.StepResponse addStepToGoal(Long userId, TimeAttackStepDto.AddStepRequest request) {
-        log.debug("Adding step to goal: {} for user: {}", request.getGoalId(), userId);
-    
-        validateUser(userId);
-        TimeAttackGoal goal = findGoalByIdAndUserId(request.getGoalId(), userId);
-    
-        // 임시 세션을 생성하여 단계를 저장 (실제 세션 시작 전 준비 단계)
-        TimeAttackSession tempSession = getOrCreateTempSession(goal);
-    
-        // ✅ MAX 대체: Top+OrderBy로 현재 최대 stepOrder를 가진 행을 가져와 +1
-        int nextStepOrder = timeAttackStepRepository
-                .findTopByTimeAttackSession_IdOrderByStepOrderDesc(tempSession.getId())
-                .map(s -> s.getStepOrder() + 1)
-                .orElse(1); // 스텝이 없으면 1부터 시작
-    
-        TimeAttackStep newStep = TimeAttackStep.builder()
-                .timeAttackSession(tempSession)
-                .stepOrder(nextStepOrder)
-                .content(request.getContent())
-                .durationInSeconds(request.getDurationInSeconds())
-                .build();
-    
-        TimeAttackStep savedStep = timeAttackStepRepository.save(newStep);
-        log.info("Added new step: {} to goal: {}", savedStep.getId(), request.getGoalId());
-    
-        return new TimeAttackStepDto.StepResponse(
-                savedStep.getId(),
-                savedStep.getContent(),
-                savedStep.getDurationInSeconds(),
-                savedStep.getStepOrder()
-        );
-    }
-    
-    private TimeAttackSession getOrCreateTempSession(TimeAttackGoal goal) {
-        // 임시 세션이 이미 있는지 확인 (is_completed = false인 세션)
-        return timeAttackSessionRepository
-                .findByTimeAttackGoal_IdAndIsCompletedFalse(goal.getId())
-                .orElseGet(() -> {
-                    // 임시 세션 생성
-                    TimeAttackSession tempSession = TimeAttackSession.builder()
-                            .timeAttackGoal(goal)
-                            .user(goal.getUser())  // ✅ user 설정 추가!
-                            .totalDurationInSeconds(0) // 나중에 계산됨
-                            .isCompleted(false)
-                            .build();
-                    return timeAttackSessionRepository.save(tempSession);
-                });
-    }
-    
-    @Transactional
-    public void updateStep(Long userId, Long stepId, TimeAttackStepDto.UpdateStepRequest request) {
-        log.debug("Updating step: {} for user: {}", stepId, userId);
-        validateUser(userId);
-
-        TimeAttackStep step = timeAttackStepRepository.findById(stepId)
-                .orElseThrow(() -> {
-                    log.warn("Step not found: {}", stepId);
-                    return new IllegalArgumentException("존재하지 않는 단계입니다: " + stepId);
-                });
-
-        if (!step.getTimeAttackSession().getUser().getId().equals(userId)) {
-            log.warn("Unauthorized step access: stepId={}, userId={}", stepId, userId);
-            throw new IllegalArgumentException("접근 권한이 없는 단계입니다.");
-        }
-
-        if (step.getTimeAttackSession().getIsCompleted()) {
-            log.warn("Attempted to update step in completed session: {} by user: {}",
-                    step.getTimeAttackSession().getId(), userId);
-            throw new IllegalArgumentException("완료된 세션의 단계는 수정할 수 없습니다.");
-        }
-
-        // 내용/시간 업데이트
-        if (request.getContent() != null && !request.getContent().trim().isEmpty()) {
-            step.updateContent(request.getContent());
-        }
-        if (request.getDurationInSeconds() != null) {
-            step.updateDuration(request.getDurationInSeconds());
-        }
-
-        // 순서 변경이 있는 경우: 동일 세션 내 전체 재정렬
-        if (request.getStepOrder() != null) {
-            Long sessionId = step.getTimeAttackSession().getId();
-            List<TimeAttackStep> steps =
-                    new ArrayList<>(timeAttackStepRepository.findByTimeAttackSession_IdOrderByStepOrderAsc(sessionId));
-
-            // 현재 스텝 제거
-            steps.removeIf(s -> Objects.equals(s.getId(), step.getId()));
-
-            // 삽입 위치 보정 (1..N+1)
-            int newOrder = Math.max(1, Math.min(request.getStepOrder(), steps.size() + 1));
-            steps.add(newOrder - 1, step);
-
-            // 1..N 재부여
-            for (int i = 0; i < steps.size(); i++) {
-                steps.get(i).updateStepOrder(i + 1);
-            }
-
-            // 전체 저장
-            timeAttackStepRepository.saveAll(steps);
-            log.info("Reordered steps in session: {} (moved stepId={} to order={})",
-                    sessionId, stepId, newOrder);
-        } else {
-            // 순서 변경 없으면 해당 스텝만 저장
-            timeAttackStepRepository.save(step);
-        }
-
-        log.info("Updated step: {} for user: {}", stepId, userId);
-    }
-
-    @Transactional
-    public void deleteStepById(Long userId, Long stepId) {
-        log.debug("Deleting step: {} for user: {}", stepId, userId);
-        validateUser(userId);
-
-        TimeAttackStep step = timeAttackStepRepository.findById(stepId)
-                .orElseThrow(() -> {
-                    log.warn("Step not found: {}", stepId);
-                    return new IllegalArgumentException("존재하지 않는 단계입니다: " + stepId);
-                });
-
-        if (!step.getTimeAttackSession().getUser().getId().equals(userId)) {
-            log.warn("Unauthorized step access: stepId={}, userId={}", stepId, userId);
-            throw new IllegalArgumentException("접근 권한이 없는 단계입니다.");
-        }
-
-        if (step.getTimeAttackSession().getIsCompleted()) {
-            log.warn("Attempted to delete step from completed session: {} by user: {}",
-                    step.getTimeAttackSession().getId(), userId);
-            throw new IllegalArgumentException("완료된 세션의 단계는 삭제할 수 없습니다.");
-        }
-
-        Long sessionId = step.getTimeAttackSession().getId();
-
-        // 삭제
-        timeAttackStepRepository.delete(step);
-
-        // 잔여 스텝 재정렬
-        List<TimeAttackStep> remainingSteps =
-                timeAttackStepRepository.findByTimeAttackSession_IdOrderByStepOrderAsc(sessionId);
-        for (int i = 0; i < remainingSteps.size(); i++) {
-            remainingSteps.get(i).updateStepOrder(i + 1);
-        }
-        timeAttackStepRepository.saveAll(remainingSteps);
-
-        log.info("Deleted step: {} and reordered remaining steps in session: {}", stepId, sessionId);
-    }
-
-    // ==================== 유틸리티 ====================
-
-    private User validateUser(Long userId) {
-        return userRepository.findById(userId)
-                .orElseThrow(() -> {
-                    log.warn("User not found: {}", userId);
-                    return new IllegalArgumentException("존재하지 않는 사용자입니다: " + userId);
-                });
-    }
-
-    private TimeAttackGoal findGoalByIdAndUserId(Long goalId, Long userId) {
-        return timeAttackGoalRepository.findById(goalId)
-                .filter(goal -> goal.getUser().getId().equals(userId))
-                .orElseThrow(() -> {
-                    log.warn("Goal not found or access denied: goalId={}, userId={}", goalId, userId);
-                    return new IllegalArgumentException("존재하지 않거나 접근 권한이 없는 목적입니다: " + goalId);
-                });
-    }
-
-    private TimeAttackSession findSessionByIdAndUserId(Long sessionId, Long userId) {
-        return timeAttackSessionRepository.findById(sessionId)
-                .filter(session -> session.getUser().getId().equals(userId))
-                .orElseThrow(() -> {
-                    log.warn("Session not found or access denied: sessionId={}, userId={}", sessionId, userId);
-                    return new IllegalArgumentException("존재하지 않거나 접근 권한이 없는 세션입니다: " + sessionId);
-                });
-    }
-
-    private TimeAttackGoalDto.GoalResponse convertToGoalResponse(TimeAttackGoal goal) {
-        return new TimeAttackGoalDto.GoalResponse(
-                goal.getId(),
-                goal.getName(),
-                goal.getIsPredefined(),
-                goal.getCreatedAt(),
-                goal.getUpdatedAt()
-        );
-    }
-
-    private TimeAttackSessionDto.SessionResponse convertToSessionResponse(
-            TimeAttackSession session, List<TimeAttackStep> steps) {
-
-        List<TimeAttackStepDto.StepResponse> stepResponses = steps.stream()
+    /**
+     * TimeAttackStep 리스트를 StepResponse 리스트로 변환
+     */
+    private List<TimeAttackStepDto.StepResponse> convertToStepResponses(List<TimeAttackStep> steps) {
+        return steps.stream()
                 .map(step -> new TimeAttackStepDto.StepResponse(
                         step.getId(),
                         step.getContent(),
@@ -465,14 +594,5 @@ public class TimeAttackService {
                         step.getStepOrder()
                 ))
                 .toList();
-
-        return new TimeAttackSessionDto.SessionResponse(
-                session.getId(),
-                session.getTimeAttackGoal().getName(),
-                session.getTotalDurationInSeconds(),
-                session.getIsCompleted(),
-                stepResponses,
-                session.getCreatedAt()
-        );
     }
 }
