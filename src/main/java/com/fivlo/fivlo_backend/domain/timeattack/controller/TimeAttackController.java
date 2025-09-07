@@ -19,8 +19,8 @@ import jakarta.validation.Valid;
 import java.util.Map;
 
 /**
- * 타임어택 컨트롤러 (API 41-48)
- * i18n 키 기반 다국어 지원과 AI 추천 캐싱을 포함한 REST API 엔드포인트 제공
+ * 타임어택 컨트롤러 (API 41-47)
+ * i18n 키 기반 다국어 지원과 GeminiService Redis 캐싱을 활용한 REST API 엔드포인트 제공
  */
 @Slf4j
 @RestController
@@ -126,28 +126,6 @@ public class TimeAttackController {
                  request.getGoalId(), request.getTotalDurationInSeconds(), languageCode, userId);
         
         TimeAttackAIDto.RecommendStepsResponse response = timeAttackService.recommendSteps(userId, request);
-        
-        return ResponseEntity.ok(response);
-    }
-
-    /**
-     * API 48: 타임어택 목표의 마지막 추천 단계 조회 (캐싱)
-     * GET /api/v1/time-attack/goals/{goalId}/last-recommended-steps
-     */
-    @GetMapping("/goals/{goalId}/last-recommended-steps")
-    public ResponseEntity<TimeAttackAIDto.CachedStepsResponse> getLastRecommendedSteps(
-            @AuthenticationPrincipal CustomUserDetails userDetails,
-            @PathVariable Long goalId,
-            @RequestHeader(value = "Accept-Language", defaultValue = "ko") String acceptLanguage) {
-
-        Long userId = userDetails.getUser().getId();
-        String languageCode = extractLanguageCode(acceptLanguage);
-        
-        log.debug("Getting last recommended steps for goal: {}, user: {}, language: {}", 
-                 goalId, userId, languageCode);
-        
-        TimeAttackAIDto.CachedStepsResponse response = timeAttackService.getLastRecommendedSteps(
-                userId, goalId, languageCode);
         
         return ResponseEntity.ok(response);
     }

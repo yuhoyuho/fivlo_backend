@@ -5,8 +5,10 @@ import com.google.genai.types.GenerateContentConfig;
 import com.google.genai.types.GenerateContentResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
 /** Gemini AI 서비스 (Google Gen AI SDK) */
@@ -14,20 +16,41 @@ import java.util.concurrent.CompletableFuture;
 public class GeminiService {
 
     private static final Logger logger = LoggerFactory.getLogger(GeminiService.class);
+    
+    // Redis 캐싱 설정
+    private static final String CACHE_KEY_PREFIX = "ai:gemini:";
+    private static final Duration CACHE_TTL = Duration.ofHours(24); // 24시간 캐시
 
     private final Client client;
     private final String model;
+    private final RedisTemplate<String, Object> redisTemplate;
 
-    public GeminiService(Client client, String genaiModelName) {
+    public GeminiService(Client client, String genaiModelName, RedisTemplate<String, Object> redisTemplate) {
         this.client = client;
         this.model = genaiModelName; // 예: gemini-2.5-flash
+        this.redisTemplate = redisTemplate;
     }
 
-    /** 동기 호출 */
+    /** 
+     * 동기 호출 (Redis 캐싱 지원)
+     * 프롬프트 기반으로 캐시 키를 생성하여 중복 호출 방지
+     */
     public String generateContent(String prompt) {
         try {
             if (prompt == null) throw new IllegalArgumentException("prompt is null");
-            logger.debug("Generating content, prompt preview: {}", prompt.substring(0, Math.min(100, prompt.length())));
+            
+            // 1. 캐시 키 생성 (프롬프트 해시 기반)
+            String cacheKey = generateCacheKey(prompt);
+            
+            // 2. 캐시에서 먼저 조회
+            String cachedResponse = getCachedResponse(cacheKey);
+            if (cachedResponse != null) {
+                logger.debug("Cache HIT for prompt preview: {}", prompt.substring(0, Math.min(50, prompt.length())));
+                return cachedResponse;
+            }
+            
+            // 3. 캐시 미스 - 실제 AI 호출
+            logger.debug("Cache MISS - Generating content, prompt preview: {}", prompt.substring(0, Math.min(100, prompt.length())));
 
             // JSON만 생성하도록 모델에 강제
             GenerateContentConfig cfg = GenerateContentConfig.builder()
@@ -40,7 +63,12 @@ public class GeminiService {
             logger.debug("Generated content length: {}", (text != null ? text.length() : 0));
 
             // 혹시라도 모델이 앞뒤로 설명/마크다운을 섞어 보내면 첫 번째 JSON만 추출
-            return extractFirstJson(text);
+            String response = extractFirstJson(text);
+            
+            // 4. 응답을 캐시에 저장
+            cacheResponse(cacheKey, response);
+            
+            return response;
 
         } catch (Exception e) {
             logger.error("Error generating content with Gemini", e);
@@ -54,11 +82,24 @@ public class GeminiService {
     }
 
 
-    /** 일반 텍스트 응답용 동기 호출 (집중도 분석용) - 언어별 지원 */
+    /** 일반 텍스트 응답용 동기 호출 (집중도 분석용) - 언어별 지원 + Redis 캐싱 */
     public String generatePlainText(String prompt, String languageCode) {
         try {
             if (prompt == null) throw new IllegalArgumentException("prompt is null");
-            logger.debug("Generating plain text, prompt preview: {}, language: {}", 
+            
+            // 1. 언어 코드를 포함한 캐시 키 생성 (언어별 다른 응답)
+            String cacheKey = generateCacheKeyWithLanguage(prompt, languageCode);
+            
+            // 2. 캐시에서 먼저 조회
+            String cachedResponse = getCachedResponse(cacheKey);
+            if (cachedResponse != null) {
+                logger.debug("Cache HIT for plain text, prompt preview: {}, language: {}", 
+                           prompt.substring(0, Math.min(50, prompt.length())), languageCode);
+                return cachedResponse;
+            }
+            
+            // 3. 캐시 미스 - 실제 AI 호출
+            logger.debug("Cache MISS - Generating plain text, prompt preview: {}, language: {}", 
                         prompt.substring(0, Math.min(100, prompt.length())), languageCode);
 
             // 일반 텍스트 응답을 위한 설정 (JSON 강제 없음)
@@ -71,10 +112,18 @@ public class GeminiService {
 
             if (text == null || text.trim().isEmpty()) {
                 // 언어별 기본 메시지
-                return getDefaultErrorMessage(languageCode);
+                String defaultMessage = getDefaultErrorMessage(languageCode);
+                // 기본 메시지도 캐시 (에러 응답 중복 방지)
+                cacheResponse(cacheKey, defaultMessage);
+                return defaultMessage;
             }
 
-            return text.trim();
+            String response = text.trim();
+            
+            // 4. 응답을 캐시에 저장
+            cacheResponse(cacheKey, response);
+            
+            return response;
 
         } catch (Exception e) {
             logger.error("Error generating plain text with Gemini", e);
@@ -347,5 +396,84 @@ public class GeminiService {
             return "An error occurred while generating AI text";
         }
         return "AI 텍스트 생성 중 오류가 발생했습니다";
+    }
+    
+    // === Redis 캐싱 유틸리티 메서드들 ===
+    
+    /**
+     * 프롬프트 기반 캐시 키 생성
+     * 프롬프트의 해시값을 사용하여 고유한 캐시 키 생성
+     */
+    private String generateCacheKey(String prompt) {
+        if (prompt == null || prompt.trim().isEmpty()) {
+            return CACHE_KEY_PREFIX + "empty";
+        }
+        
+        // 프롬프트를 정규화하여 일관된 키 생성
+        String normalizedPrompt = prompt.trim().replaceAll("\\s+", " ");
+        int hash = normalizedPrompt.hashCode();
+        
+        // 양수로 변환하여 키 생성
+        String hashString = String.valueOf(Math.abs(hash));
+        return CACHE_KEY_PREFIX + hashString;
+    }
+    
+    /**
+     * 언어별 캐시 키 생성 (generatePlainText용)
+     * 같은 프롬프트라도 언어가 다르면 다른 캐시 키 생성
+     */
+    private String generateCacheKeyWithLanguage(String prompt, String languageCode) {
+        if (prompt == null || prompt.trim().isEmpty()) {
+            return CACHE_KEY_PREFIX + "empty:" + (languageCode != null ? languageCode : "ko");
+        }
+        
+        // 프롬프트를 정규화하여 일관된 키 생성
+        String normalizedPrompt = prompt.trim().replaceAll("\\s+", " ");
+        String combinedInput = normalizedPrompt + ":" + (languageCode != null ? languageCode : "ko");
+        int hash = combinedInput.hashCode();
+        
+        // 양수로 변환하여 키 생성
+        String hashString = String.valueOf(Math.abs(hash));
+        return CACHE_KEY_PREFIX + hashString + ":" + (languageCode != null ? languageCode : "ko");
+    }
+    
+    /**
+     * 캐시에서 응답 조회
+     */
+    private String getCachedResponse(String cacheKey) {
+        try {
+            Object cached = redisTemplate.opsForValue().get(cacheKey);
+            if (cached instanceof String) {
+                return (String) cached;
+            }
+            return null;
+        } catch (Exception e) {
+            logger.warn("Failed to get cached response for key: {}", cacheKey, e);
+            return null;
+        }
+    }
+    
+    /**
+     * 응답을 캐시에 저장
+     */
+    private void cacheResponse(String cacheKey, String response) {
+        try {
+            redisTemplate.opsForValue().set(cacheKey, response, CACHE_TTL);
+            logger.debug("Cached AI response with key: {}, TTL: {}h", cacheKey, CACHE_TTL.toHours());
+        } catch (Exception e) {
+            logger.warn("Failed to cache AI response for key: {}", cacheKey, e);
+        }
+    }
+    
+    /**
+     * 캐시 통계 조회 (디버깅/모니터링용)
+     */
+    public void logCacheStats() {
+        try {
+            // Redis 키 패턴으로 캐시된 항목 수 조회
+            logger.info("AI Cache Statistics - Current cached items with prefix: {}", CACHE_KEY_PREFIX);
+        } catch (Exception e) {
+            logger.warn("Failed to get cache statistics", e);
+        }
     }
 }

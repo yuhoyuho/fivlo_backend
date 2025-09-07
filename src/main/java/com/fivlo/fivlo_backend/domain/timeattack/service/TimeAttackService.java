@@ -44,11 +44,7 @@ public class TimeAttackService {
     private final ObjectMapper objectMapper;
     private final TimeAttackGoalInitService goalInitService;
 
-    // 메모리 기반 캐시 (단순 구현 - 추후 Redis로 교체 가능)
-    private final Map<String, TimeAttackAIDto.CacheEntry> recommendationCache = new ConcurrentHashMap<>();
-    
-    // 캐시 TTL: 1시간
-    private static final long CACHE_TTL_HOURS = 1;
+    // AI 응답 캐싱은 GeminiService의 Redis 캐시를 사용
 
     // ==================== 목적 관리 (i18n 지원) ====================
 
@@ -138,9 +134,6 @@ public class TimeAttackService {
 
         goal.updateCustomName(request.getName());
         
-        // 캐시 무효화 (목적 이름이 변경되었으므로)
-        invalidateGoalCache(goalId);
-        
         log.info("Updated time attack goal: {} for user: {}", goalId, userId);
         return convertToGoalResponse(goal);
     }
@@ -160,9 +153,6 @@ public class TimeAttackService {
             throw new IllegalArgumentException("미리 정의된 목적은 삭제할 수 없습니다.");
         }
 
-        // 캐시 무효화 (목적이 삭제되므로)
-        invalidateGoalCache(goalId);
-
         timeAttackGoalRepository.delete(goal);
         log.info("Deleted time attack goal: {} for user: {}", goalId, userId);
     }
@@ -170,7 +160,7 @@ public class TimeAttackService {
     // ==================== AI 추천 (캐싱 지원) ====================
 
     /**
-     * AI 기반 단계 추천 (goalId 기반 + 언어별 요청 + 캐싱)
+     * AI 기반 단계 추천 (GeminiService Redis 캐싱 활용)
      */
     public TimeAttackAIDto.RecommendStepsResponse recommendSteps(Long userId, TimeAttackAIDto.RecommendStepsRequest request) {
         log.debug("Requesting AI step recommendation for goalId: {}, duration: {}s, language: {}", 
@@ -184,30 +174,14 @@ public class TimeAttackService {
             
             log.debug("Found goal: {} (ID: {}) for user: {}", goalName, request.getGoalId(), userId);
 
-            // 2. 캐시 확인 먼저! (goalId 기반)
-            String cacheKey = TimeAttackAIDto.CacheEntry.generateCacheKey(request.getGoalId(), request.getLanguageCode());
-            
-            TimeAttackAIDto.CacheEntry cachedEntry = recommendationCache.get(cacheKey);
-            
-            // 3. 유효한 캐시가 있으면 바로 반환
-            if (cachedEntry != null && !cachedEntry.isExpired()) {
-                log.debug("Found valid cache for goalId: {}, language: {}", request.getGoalId(), request.getLanguageCode());
-                return new TimeAttackAIDto.RecommendStepsResponse(
-                        cachedEntry.getRecommendedSteps(),
-                        cachedEntry.getRecommendedSteps().size(),
-                        cachedEntry.getTotalDurationInSeconds(),
-                        "AI 단계 추천이 완료되었습니다. (캐시에서 조회)"
-                );
-            }
-
-            // 4. 캐시 없음 - AI 호출 (goalName으로 추천 받기)
+            // 2. AI 호출 (GeminiService에서 자동으로 캐싱 처리)
             String jsonResponse = geminiService.recommendTimeAttackSteps(
                 goalName,  // ← AI에게는 실제 활동 이름 전달
                 request.getTotalDurationInSeconds(),
                 request.getLanguageCode()
             );
 
-            // 5. JSON 파싱
+            // 3. JSON 파싱
             AITimeAttackResponse aiResponse = objectMapper.readValue(jsonResponse, AITimeAttackResponse.class);
 
             List<TimeAttackAIDto.RecommendedStep> steps = aiResponse.getRecommendedSteps().stream()
@@ -225,15 +199,6 @@ public class TimeAttackService {
                     "AI 단계 추천이 완료되었습니다."
             );
 
-            // 6. 응답을 캐시에 저장! (goalId 기반)
-            cacheRecommendation(
-                request.getGoalId(), 
-                goalName,
-                response, 
-                request.getLanguageCode(), 
-                request.getTotalDurationInSeconds()
-            );
-
             return response;
 
         } catch (Exception e) {
@@ -242,98 +207,7 @@ public class TimeAttackService {
         }
     }
 
-    /**
-     * 마지막 추천 단계 조회 (API 48 - 캐싱)
-     */
-    public TimeAttackAIDto.CachedStepsResponse getLastRecommendedSteps(Long userId, Long goalId, String languageCode) {
-        log.debug("Getting last recommended steps for goal: {}, user: {}, language: {}", goalId, userId, languageCode);
-
-        // 사용자 및 목적 검증
-        validateUser(userId);
-        TimeAttackGoal goal = findGoalByIdAndUserId(goalId, userId);
-
-        // 캐시 키 생성 (goalId 기반 - API 45와 동일)
-        String cacheKey = TimeAttackAIDto.CacheEntry.generateCacheKey(goalId, languageCode);
-        
-        // 캐시 조회
-        TimeAttackAIDto.CacheEntry cachedEntry = recommendationCache.get(cacheKey);
-        
-        if (cachedEntry != null && !cachedEntry.isExpired()) {
-            log.debug("Found valid cache for goal: {}, language: {}", goalId, languageCode);
-            return new TimeAttackAIDto.CachedStepsResponse(
-                    goalId,
-                    goal.getDisplayName(),
-                    cachedEntry.getRecommendedSteps(),
-                    cachedEntry.getRecommendedSteps().size(),
-                    cachedEntry.getTotalDurationInSeconds(),
-                    languageCode,
-                    cachedEntry.getCreatedAt(),
-                    false
-            );
-        }
-
-        // 캐시 없음 또는 만료됨
-        log.debug("No valid cache found for goal: {}, language: {}", goalId, languageCode);
-        
-        return new TimeAttackAIDto.CachedStepsResponse(
-                goalId,
-                goal.getDisplayName(),
-                List.of(),
-                0,
-                0,
-                languageCode,
-                null,
-                true
-        );
-    }
-
-    /**
-     * AI 추천 결과를 캐시에 저장
-     */
-    public void cacheRecommendation(Long goalId, String goalName, TimeAttackAIDto.RecommendStepsResponse response, 
-                                   String languageCode, Integer totalDurationInSeconds) {
-        log.debug("Caching recommendation for goal: {}, language: {}", goalId, languageCode);
-
-        String cacheKey = TimeAttackAIDto.CacheEntry.generateCacheKey(goalId, languageCode);
-        LocalDateTime now = LocalDateTime.now();
-        LocalDateTime expiresAt = now.plusHours(CACHE_TTL_HOURS);
-
-        TimeAttackAIDto.CacheEntry entry = new TimeAttackAIDto.CacheEntry(
-                cacheKey,
-                goalName,
-                response.getRecommendedSteps(),
-                languageCode,
-                totalDurationInSeconds,
-                now,
-                expiresAt
-        );
-
-        recommendationCache.put(cacheKey, entry);
-        
-        // 만료된 캐시 정리 (간단한 구현)
-        cleanExpiredCache();
-        
-        log.info("Cached recommendation for goal: {}, language: {}, expires at: {}", goalId, languageCode, expiresAt);
-    }
-
-    /**
-     * 만료된 캐시 정리
-     */
-    private void cleanExpiredCache() {
-        recommendationCache.entrySet().removeIf(entry -> entry.getValue().isExpired());
-    }
-
-    /**
-     * 특정 목적의 캐시 삭제 (목적 수정/삭제 시 사용)
-     */
-    private void invalidateGoalCache(Long goalId) {
-        List<String> keysToRemove = recommendationCache.keySet().stream()
-                .filter(key -> key.contains("goal:" + goalId + ":"))
-                .toList();
-        
-        keysToRemove.forEach(recommendationCache::remove);
-        log.debug("Invalidated cache for goal: {}, removed {} entries", goalId, keysToRemove.size());
-    }
+    // ==================== 세션 관리 ====================
 
     // ==================== 유틸리티 메서드 ====================
 
