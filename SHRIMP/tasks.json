@@ -1,239 +1,103 @@
 {
   "tasks": [
     {
-      "id": "bd8198a8-764a-47c2-be68-b8db33d72a06",
-      "name": "TimeAttackGoalTranslation 엔티티 생성",
-      "description": "다국어 지원을 위한 새로운 엔티티를 생성합니다. TimeAttackGoal과 N:1 관계를 가지며 goal_id(FK), language_code, name 필드를 포함합니다.",
-      "notes": "기존 TimeAttackGoal 엔티티의 패턴을 그대로 따르며, 복합 유니크 키(goal_id, language_code) 설정 필요",
+      "id": "282e19a2-7afa-4e27-9b30-896862effae7",
+      "name": "FocusAnalysisService에 AI 월간 분석 연동",
+      "description": "FocusAnalysisService.getMonthlyAIAnalysis() 메서드에서 현재 로컬 분석만 수행하고 있는 로직을 GeminiService.generateMonthlyAnalysisSuggestions()를 호출하여 실제 AI 분석을 수행하도록 수정합니다.",
+      "notes": "GeminiService는 이미 FocusAnalysisService에 주입되어 있음. 기존 로깅 패턴과 예외 처리 방식 유지. AI 응답 파싱 실패 시 안전한 fallback 처리 필요.",
       "status": "completed",
       "dependencies": [],
-      "createdAt": "2025-09-06T05:34:03.295Z",
-      "updatedAt": "2025-09-06T05:36:29.578Z",
+      "createdAt": "2025-09-07T06:01:18.268Z",
+      "updatedAt": "2025-09-07T06:03:38.646Z",
       "relatedFiles": [
         {
-          "path": "C:\\fivlo-backend\\src\\main\\java\\com\\fivlo\\fivlo_backend\\domain\\timeattack\\entity\\TimeAttackGoalTranslation.java",
-          "type": "CREATE",
-          "description": "신규 Translation 엔티티 파일"
+          "path": "src/main/java/com/fivlo/fivlo_backend/domain/pomodoro/service/FocusAnalysisService.java",
+          "type": "TO_MODIFY",
+          "description": "getMonthlyAIAnalysis 메서드 수정",
+          "lineStart": 339,
+          "lineEnd": 375
         },
         {
-          "path": "C:\\fivlo-backend\\src\\main\\java\\com\\fivlo\\fivlo_backend\\domain\\timeattack\\entity\\TimeAttackGoal.java",
+          "path": "src/main/java/com/fivlo/fivlo_backend/common/ai/GeminiService.java",
           "type": "REFERENCE",
-          "description": "기존 엔티티 패턴 참조용"
-        }
-      ],
-      "implementationGuide": "1. TimeAttackGoalTranslation.java 생성 \\n2. @Entity, @Table(name = \"time_attack_goal_translations\") 어노테이션 적용 \\n3. @ManyToOne TimeAttackGoal 연관관계 설정 \\n4. language_code VARCHAR(5), name VARCHAR(255) 필드 추가 \\n5. @CreatedDate, @LastModifiedDate 추가 \\n6. Builder 패턴과 비즈니스 메서드 구현",
-      "verificationCriteria": "엔티티 생성 후 JPA 매핑이 올바르게 동작하는지 확인. goal_id와 language_code의 복합 유니크 제약조건이 적용되는지 검증",
-      "analysisResult": "FIVLO 백엔드 타임어택 기능을 새로운 ERD와 API 설계에 맞게 수정합니다. 다국어 지원을 위한 Translation 엔티티 추가, API 축소(10개→8개), AI 추천 캐싱 기능 추가하면서 기존 DDD 패턴과 Routes 상수 관리 방식을 유지합니다.",
-      "summary": "TimeAttackGoalTranslation 엔티티를 성공적으로 생성했습니다. JPA 매핑, 복합 유니크 키 제약조건, TimeAttackGoal과의 N:1 연관관계, 그리고 다국어 처리를 위한 비즈니스 메서드들이 모두 구현되었습니다. 기존 TimeAttackGoal의 패턴을 그대로 따라 일관성이 유지되었습니다.",
-      "completedAt": "2025-09-06T05:36:29.576Z"
-    },
-    {
-      "id": "cebd7c8e-25c4-4d39-b711-75916999c76a",
-      "name": "TimeAttackGoal 엔티티 수정",
-      "description": "기존 TimeAttackGoal 엔티티에서 name 필드를 제거하고, Translation 엔티티와의 @OneToMany 연관관계를 추가합니다.",
-      "notes": "기존 isPredefined 필드는 유지. 연관관계 매핑 시 LazyLoading 적용",
-      "status": "completed",
-      "dependencies": [
-        {
-          "taskId": "bd8198a8-764a-47c2-be68-b8db33d72a06"
-        }
-      ],
-      "createdAt": "2025-09-06T05:34:03.295Z",
-      "updatedAt": "2025-09-06T05:40:56.449Z",
-      "relatedFiles": [
-        {
-          "path": "C:\\fivlo-backend\\src\\main\\java\\com\\fivlo\\fivlo_backend\\domain\\timeattack\\entity\\TimeAttackGoal.java",
-          "type": "TO_MODIFY",
-          "description": "name 필드 제거 및 Translation 연관관계 추가",
-          "lineStart": 36,
-          "lineEnd": 83
-        }
-      ],
-      "implementationGuide": "1. name 필드 및 관련 메서드(updateName) 제거 \\n2. @OneToMany TimeAttackGoalTranslation 연관관계 추가 \\n3. translations 필드 추가 (cascade = CascadeType.ALL) \\n4. 비즈니스 메서드 수정 (name 관련 로직 제거) \\n5. Builder 생성자에서 name 파라미터 제거",
-      "verificationCriteria": "기존 name 필드가 완전히 제거되고, Translation 엔티티와의 양방향 연관관계가 올바르게 설정되었는지 확인",
-      "analysisResult": "FIVLO 백엔드 타임어택 기능을 새로운 ERD와 API 설계에 맞게 수정합니다. 다국어 지원을 위한 Translation 엔티티 추가, API 축소(10개→8개), AI 추천 캐싱 기능 추가하면서 기존 DDD 패턴과 Routes 상수 관리 방식을 유지합니다.",
-      "summary": "TimeAttackGoal 엔티티 수정을 성공적으로 완료했습니다. name 필드와 updateName 메서드를 제거하고, TimeAttackGoalTranslation과의 @OneToMany 양방향 연관관계를 추가했습니다. 다국어 조회를 위한 비즈니스 메서드들과 fallback 로직도 구현하여 견고한 다국어 지원 구조를 만들었습니다.",
-      "completedAt": "2025-09-06T05:40:56.446Z"
-    },
-    {
-      "id": "bd171dd3-1eb9-4ef0-9f65-8242b0fb6cf2",
-      "name": "TimeAttackGoalTranslationRepository 생성",
-      "description": "Translation 엔티티를 위한 Repository 인터페이스를 생성하고, 다국어 조회를 위한 커스텀 쿼리 메서드들을 정의합니다.",
-      "notes": "기존 TimeAttackGoalRepository의 패턴을 그대로 따라 User_Id를 포함한 복합 조건 쿼리 작성",
-      "status": "completed",
-      "dependencies": [
-        {
-          "taskId": "bd8198a8-764a-47c2-be68-b8db33d72a06"
-        }
-      ],
-      "createdAt": "2025-09-06T05:34:03.295Z",
-      "updatedAt": "2025-09-06T05:57:21.150Z",
-      "relatedFiles": [
-        {
-          "path": "C:\\fivlo-backend\\src\\main\\java\\com\\fivlo\\fivlo_backend\\domain\\timeattack\\repository\\TimeAttackGoalTranslationRepository.java",
-          "type": "CREATE",
-          "description": "신규 Translation Repository 파일"
-        },
-        {
-          "path": "C:\\fivlo-backend\\src\\main\\java\\com\\fivlo\\fivlo_backend\\domain\\timeattack\\repository\\TimeAttackGoalRepository.java",
-          "type": "REFERENCE",
-          "description": "기존 Repository 패턴 참조용"
-        }
-      ],
-      "implementationGuide": "1. JpaRepository<TimeAttackGoalTranslation, Long> 상속 \\n2. findByGoal_IdAndLanguageCode 메서드 추가 \\n3. findByGoal_User_IdAndLanguageCode 메서드 추가 \\n4. existsByGoal_User_IdAndNameIgnoreCaseAndLanguageCode 중복체크 메서드 추가 \\n5. 기존 Repository 네이밍 컨벤션 준수",
-      "verificationCriteria": "Repository 메서드들이 올바른 쿼리를 생성하는지 확인. 특히 User_Id와 language_code 복합 조건 쿼리가 정상 동작하는지 검증",
-      "analysisResult": "FIVLO 백엔드 타임어택 기능을 새로운 ERD와 API 설계에 맞게 수정합니다. 다국어 지원을 위한 Translation 엔티티 추가, API 축소(10개→8개), AI 추천 캐싱 기능 추가하면서 기존 DDD 패턴과 Routes 상수 관리 방식을 유지합니다.",
-      "summary": "Task 3을 i18n 구조에 맞게 수정 완료했습니다. 불필요한 Translation Repository 대신 기존 TimeAttackGoalRepository를 nameKey(미리 정의된 목적)와 customName(사용자 추가 목적) 기반으로 업데이트했습니다. 각 타입별 중복 체크, 조회 메서드들을 구분해서 구현하여 데이터 무결성을 보장했습니다.",
-      "completedAt": "2025-09-06T05:57:21.149Z"
-    },
-    {
-      "id": "91ad4ac7-f4e4-4106-ad96-f967410346a7",
-      "name": "TimeAttackGoalDto 다국어 지원 수정",
-      "description": "기존 DTO 클래스들에 language_code 필드를 추가하고, 다국어 응답을 위한 구조로 수정합니다.",
-      "notes": "language_code는 'ko', 'en' 값만 허용. 기존 validation 패턴(@Size, @NotBlank)을 최대한 재사용",
-      "status": "completed",
-      "dependencies": [],
-      "createdAt": "2025-09-06T05:34:03.295Z",
-      "updatedAt": "2025-09-06T05:59:42.426Z",
-      "relatedFiles": [
-        {
-          "path": "C:\\fivlo-backend\\src\\main\\java\\com\\fivlo\\fivlo_backend\\domain\\timeattack\\dto\\TimeAttackGoalDto.java",
-          "type": "TO_MODIFY",
-          "description": "language_code 필드 추가 및 validation 수정",
-          "lineStart": 21,
-          "lineEnd": 32
-        }
-      ],
-      "implementationGuide": "1. GoalRequest에 language_code 필드 추가 (@NotBlank, @Pattern 적용) \\n2. GoalResponse는 기존 구조 유지 (name 필드 유지) \\n3. validation 어노테이션으로 ko, en만 허용하도록 제한 \\n4. @JsonFormat 등 기존 패턴 유지",
-      "verificationCriteria": "DTO validation이 올바르게 동작하는지 확인. language_code에 잘못된 값이 들어올 때 validation 에러가 발생하는지 검증",
-      "analysisResult": "FIVLO 백엔드 타임어택 기능을 새로운 ERD와 API 설계에 맞게 수정합니다. 다국어 지원을 위한 Translation 엔티티 추가, API 축소(10개→8개), AI 추천 캐싱 기능 추가하면서 기존 DDD 패턴과 Routes 상수 관리 방식을 유지합니다.",
-      "summary": "TimeAttackGoalDto를 i18n 구조에 맞게 성공적으로 수정했습니다. GoalRequest에 languageCode와 isPredefined 필드를 추가하고, @Pattern validation으로 ko/en만 허용하도록 제한했습니다. GoalResponse는 isPredefined 값에 따라 i18n 키 또는 사용자 텍스트를 반환하는 구조로 최적화했습니다.",
-      "completedAt": "2025-09-06T05:59:42.425Z"
-    },
-    {
-      "id": "ea17d79a-2f20-4148-99fc-4178942a30b7",
-      "name": "Routes 상수 클래스 업데이트",
-      "description": "새로운 API 구조에 맞게 Routes 클래스를 업데이트하고, 불필요한 Step 관리 상수들을 제거합니다.",
-      "notes": "기존 상수 패턴을 유지하면서 새로운 'last-recommended-steps' 엔드포인트 상수만 추가",
-      "status": "completed",
-      "dependencies": [],
-      "createdAt": "2025-09-06T05:34:03.295Z",
-      "updatedAt": "2025-09-06T06:01:28.212Z",
-      "relatedFiles": [
-        {
-          "path": "C:\\fivlo-backend\\src\\main\\java\\com\\fivlo\\fivlo_backend\\common\\Routes.java",
-          "type": "TO_MODIFY",
-          "description": "Step 관련 상수 제거 및 새 API 상수 추가",
-          "lineStart": 66,
-          "lineEnd": 106
-        }
-      ],
-      "implementationGuide": "1. TIME_ATTACK_STEPS 관련 상수 제거 \\n2. TIME_ATTACK_STEPS_BY_ID 상수 제거 \\n3. TIME_ATTACK_GOALS_LAST_STEPS 새 상수 추가 \\n4. 주석으로 변경 사유 명시 \\n5. 기존 패턴 유지 (API_BASE 기반 조합)",
-      "verificationCriteria": "Routes 클래스가 올바르게 컴파일되고, 새로운 상수가 정확한 경로를 나타내는지 확인",
-      "analysisResult": "FIVLO 백엔드 타임어택 기능을 새로운 ERD와 API 설계에 맞게 수정합니다. 다국어 지원을 위한 Translation 엔티티 추가, API 축소(10개→8개), AI 추천 캐싱 기능 추가하면서 기존 DDD 패턴과 Routes 상수 관리 방식을 유지합니다.",
-      "summary": "Routes 상수 클래스를 새로운 API 구조(41-48)에 맞게 성공적으로 업데이트했습니다. 불필요한 개별 Step 관리 상수들을 제거하고, AI 캐싱을 위한 새로운 마지막 추천 단계 조회 API 상수를 추가했습니다. 변경 사유를 명확한 주석으로 문서화하여 유지보수성을 향상시켰습니다.",
-      "completedAt": "2025-09-06T06:01:28.211Z"
-    },
-    {
-      "id": "a50885de-4954-46d1-b743-2ba5e9ce4199",
-      "name": "TimeAttackService 다국어 지원 로직 구현",
-      "description": "Service 계층에 다국어 처리 로직을 추가하고, Translation 엔티티를 활용한 CRUD 메서드들을 수정합니다.",
-      "notes": "기존 validation과 error handling 패턴을 최대한 재사용. fallback 언어 처리 로직 추가 (한국어 없으면 영어)",
-      "status": "completed",
-      "dependencies": [
-        {
-          "taskId": "bd8198a8-764a-47c2-be68-b8db33d72a06"
-        },
-        {
-          "taskId": "bd171dd3-1eb9-4ef0-9f65-8242b0fb6cf2"
-        },
-        {
-          "taskId": "91ad4ac7-f4e4-4106-ad96-f967410346a7"
-        }
-      ],
-      "createdAt": "2025-09-06T05:34:03.295Z",
-      "updatedAt": "2025-09-06T06:03:50.133Z",
-      "relatedFiles": [
-        {
-          "path": "C:\\fivlo-backend\\src\\main\\java\\com\\fivlo\\fivlo_backend\\domain\\timeattack\\service\\TimeAttackService.java",
-          "type": "TO_MODIFY",
-          "description": "다국어 지원 로직 추가 및 Translation 기반 CRUD 수정",
-          "lineStart": 35,
-          "lineEnd": 120
-        }
-      ],
-      "implementationGuide": "1. TimeAttackGoalTranslationRepository 의존성 추가 \\n2. createGoal 메서드를 Translation 생성 로직으로 수정 \\n3. getAllGoals 메서드에 language_code 파라미터 추가 \\n4. convertToGoalResponse 메서드를 다국어 버전으로 수정 \\n5. 중복체크 로직을 Translation 기반으로 변경 \\n6. updateGoal 메서드 수정 (Translation 업데이트) \\n7. 기존 @Slf4j 로깅 패턴 유지",
-      "verificationCriteria": "다국어 Goal 생성/조회/수정이 올바르게 동작하는지 확인. fallback 언어 처리와 중복체크 로직이 정상 작동하는지 검증",
-      "analysisResult": "FIVLO 백엔드 타임어택 기능을 새로운 ERD와 API 설계에 맞게 수정합니다. 다국어 지원을 위한 Translation 엔티티 추가, API 축소(10개→8개), AI 추천 캐싱 기능 추가하면서 기존 DDD 패턴과 Routes 상수 관리 방식을 유지합니다.",
-      "summary": "TimeAttackService를 i18n 구조에 맞게 완전히 재설계했습니다. nameKey(미리 정의된 목적)와 customName(사용자 추가 목적)을 분리한 CRUD 로직, 타입별 중복 체크, AI 추천 시 언어 코드 전달, 그리고 견고한 권한 검증과 시간 검증 로직을 구현했습니다. 기존 @Slf4j 로깅 패턴을 유지하면서 더 상세한 추적이 가능해졌습니다.",
-      "completedAt": "2025-09-06T06:03:50.133Z"
-    },
-    {
-      "id": "aad7db85-4cfa-4d83-895f-3a1ce03e2c94",
-      "name": "AI 추천 단계 캐싱 API 구현",
-      "description": "마지막 추천 단계를 조회하는 새로운 API를 추가하여 AI 호출을 최소화합니다.",
-      "notes": "Redis 캐싱을 우선 고려하되, 단순 메모리 캐시로 시작 가능. TTL 설정으로 오래된 추천은 자동 삭제",
-      "status": "completed",
-      "dependencies": [
-        {
-          "taskId": "a50885de-4954-46d1-b743-2ba5e9ce4199"
-        }
-      ],
-      "createdAt": "2025-09-06T05:34:03.295Z",
-      "updatedAt": "2025-09-06T06:06:54.092Z",
-      "relatedFiles": [
-        {
-          "path": "C:\\fivlo-backend\\src\\main\\java\\com\\fivlo\\fivlo_backend\\domain\\timeattack\\service\\TimeAttackService.java",
-          "type": "TO_MODIFY",
-          "description": "캐싱 로직 및 마지막 추천 조회 메서드 추가",
+          "description": "완벽히 구현된 generateMonthlyAnalysisSuggestions 메서드",
           "lineStart": 200,
-          "lineEnd": 250
-        },
-        {
-          "path": "C:\\fivlo-backend\\src\\main\\java\\com\\fivlo\\fivlo_backend\\domain\\timeattack\\dto\\TimeAttackAIDto.java",
-          "type": "TO_MODIFY",
-          "description": "캐시 응답용 DTO 추가"
+          "lineEnd": 230
         }
       ],
-      "implementationGuide": "1. Service에 getLastRecommendedSteps 메서드 추가 \\n2. Redis나 DB를 활용한 캐싱 로직 구현 \\n3. goal_id를 키로 하는 캐시 저장/조회 로직 \\n4. TimeAttackAIDto에 캐시 응답용 DTO 추가 \\n5. 기존 recommendSteps 메서드에서 캐시 저장 로직 추가",
-      "verificationCriteria": "캐시 저장/조회가 올바르게 동작하는지 확인. 동일한 goal_id에 대해 최신 추천 결과가 반환되는지 검증",
-      "analysisResult": "FIVLO 백엔드 타임어택 기능을 새로운 ERD와 API 설계에 맞게 수정합니다. 다국어 지원을 위한 Translation 엔티티 추가, API 축소(10개→8개), AI 추천 캐싱 기능 추가하면서 기존 DDD 패턴과 Routes 상수 관리 방식을 유지합니다.",
-      "summary": "AI 추천 단계 캐싱 API를 성공적으로 구현했습니다. 메모리 기반 ConcurrentHashMap으로 Thread-safe한 캐싱 시스템을 구축하고, 언어별 독립 캐싱, TTL 1시간 자동 만료, 목적 변경 시 캐시 무효화 등의 완전한 캐싱 로직을 구현했습니다. API 48에 대응하는 CachedStepsResponse DTO도 추가하여 프론트엔드에서 캐시 상태를 확인할 수 있도록 했습니다.",
-      "completedAt": "2025-09-06T06:06:54.091Z"
+      "implementationGuide": "1. 기존 월간 세션 데이터 조회 로직 유지\\n2. 세션 데이터를 JSON 문자열로 변환하여 GeminiService에 전달\\n3. geminiService.generateMonthlyAnalysisSuggestions() 호출\\n4. AI 응답을 파싱하여 AIAnalysisResponse 구조에 맞게 변환\\n5. 기존 로컬 분석 결과 제거하고 AI 분석 결과로 대체\\n6. 에러 처리 및 로깅 추가 (AI 호출 실패 시 빈 응답 반환)",
+      "verificationCriteria": "1. GeminiService.generateMonthlyAnalysisSuggestions() 호출이 정상 동작하는지 확인\\n2. AI 응답이 올바르게 파싱되어 AIAnalysisResponse로 변환되는지 확인\\n3. 세션 데이터가 부족한 경우 빈 응답 반환하는지 확인\\n4. AI 호출 실패 시 적절한 에러 처리가 되는지 확인\\n5. 기존 API 33 엔드포인트가 정상 동작하는지 확인\\n6. 컴파일 오류가 없는지 확인",
+      "analysisResult": "AI 기능 통합 구현. GeminiService.java는 완벽히 수정 완료된 상태에서 FocusAnalysisService.getMonthlyAIAnalysis() 메서드만 수정하면 완전한 AI 기능 구현 완료. TaskController와 TaskService는 이미 완벽히 구현되어 있음.",
+      "summary": "FocusAnalysisService.getMonthlyAIAnalysis()에 GeminiService 연동 성공적으로 구현. 세션 데이터를 JSON으로 변환하여 AI에 전달, 응답 파싱, 에러 처리 포함. 기존 로컬 분석을 제거하고 실제 AI 분석으로 대체하여 API 33 기능 완성. 안전한 fallback 처리로 안정성 확보.",
+      "completedAt": "2025-09-07T06:03:38.645Z"
     },
     {
-      "id": "8e7e25e2-032d-4941-b846-59bd7124a251",
-      "name": "TimeAttackController API 엔드포인트 수정",
-      "description": "Controller의 엔드포인트를 새로운 API 스펙(41-48)에 맞게 수정하고, Accept-Language 헤더 지원을 추가합니다.",
-      "notes": "Accept-Language 헤더에서 ko, en 추출. 기본값은 ko로 설정. 기존 CustomUserDetails 인증 방식 그대로 유지",
+      "id": "6ade2cf3-5489-4b18-a9d4-20cbcc37b1fd",
+      "name": "TaskController에 언어 지원 추가",
+      "description": "TaskController의 AI 목표 분석 엔드포인트(API 16)에서 Accept-Language 헤더를 처리하여 다국어 지원을 추가합니다. 현재는 기본 한국어로만 동작하므로 언어별 지원을 구현합니다.",
+      "notes": "TaskService.analyzeAndRecommendTasks()는 이미 언어 파라미터를 지원함. 기존 오버로드된 메서드(언어 파라미터 없는 버전)도 유지하여 하위 호환성 보장.",
       "status": "completed",
       "dependencies": [
         {
-          "taskId": "ea17d79a-2f20-4148-99fc-4178942a30b7"
-        },
-        {
-          "taskId": "a50885de-4954-46d1-b743-2ba5e9ce4199"
-        },
-        {
-          "taskId": "aad7db85-4cfa-4d83-895f-3a1ce03e2c94"
+          "taskId": "282e19a2-7afa-4e27-9b30-896862effae7"
         }
       ],
-      "createdAt": "2025-09-06T05:34:03.295Z",
-      "updatedAt": "2025-09-06T06:08:36.773Z",
+      "createdAt": "2025-09-07T06:01:18.268Z",
+      "updatedAt": "2025-09-07T06:09:07.003Z",
       "relatedFiles": [
         {
-          "path": "C:\\fivlo-backend\\src\\main\\java\\com\\fivlo\\fivlo_backend\\domain\\timeattack\\controller\\TimeAttackController.java",
+          "path": "src/main/java/com/fivlo/fivlo_backend/domain/task/controller/TaskController.java",
           "type": "TO_MODIFY",
-          "description": "API 엔드포인트 수정 및 다국어 헤더 지원 추가",
-          "lineStart": 170,
-          "lineEnd": 235
+          "description": "AI 목표 분석 엔드포인트에 언어 지원 추가",
+          "lineStart": 151,
+          "lineEnd": 156
+        },
+        {
+          "path": "src/main/java/com/fivlo/fivlo_backend/domain/task/service/TaskService.java",
+          "type": "REFERENCE",
+          "description": "이미 언어별 지원이 완료된 analyzeAndRecommendTasks 메서드",
+          "lineStart": 256,
+          "lineEnd": 280
         }
       ],
-      "implementationGuide": "1. 개별 Step 관리 API 제거 (addStep, updateStep, deleteStep) \\n2. Accept-Language 헤더 처리 로직 추가 \\n3. language_code를 Service 메서드에 전달하도록 수정 \\n4. 새로운 getLastRecommendedSteps API 추가 \\n5. 기존 ResponseEntity 패턴과 @AuthenticationPrincipal 방식 유지 \\n6. @Slf4j 로깅 패턴 유지",
-      "verificationCriteria": "새로운 8개 API가 올바르게 동작하는지 확인. Accept-Language 헤더 처리와 language_code 전달이 정상 작동하는지 검증",
-      "analysisResult": "FIVLO 백엔드 타임어택 기능을 새로운 ERD와 API 설계에 맞게 수정합니다. 다국어 지원을 위한 Translation 엔티티 추가, API 축소(10개→8개), AI 추천 캐싱 기능 추가하면서 기존 DDD 패턴과 Routes 상수 관리 방식을 유지합니다.",
-      "summary": "TimeAttackController를 새로운 API 스펙(41-48)에 완벽하게 맞춰 재구성했습니다. Accept-Language 헤더 처리로 다국어 지원을 추가하고, 개별 Step 관리 API를 제거하여 8개 API로 축소했습니다. AI 추천 캐싱 API(48)와 세션 통합 관리를 구현하면서 기존 CustomUserDetails 인증 방식과 ResponseEntity 패턴을 일관성 있게 유지했습니다.",
-      "completedAt": "2025-09-06T06:08:36.773Z"
+      "implementationGuide": "1. analyzeGoalAndGetRecommendations 메서드에 @RequestHeader Accept-Language 파라미터 추가\\n2. Accept-Language 헤더에서 언어 코드 추출 (en, ko 지원)\\n3. TaskService.analyzeAndRecommendTasks(request, languageCode) 호출\\n4. 기본값은 한국어(ko)로 설정\\n5. 로깅에 언어 정보 추가\\n6. API 문서 주석 업데이트",
+      "verificationCriteria": "1. Accept-Language: en 헤더로 요청 시 영어 응답이 오는지 확인\\n2. Accept-Language: ko 헤더로 요청 시 한국어 응답이 오는지 확인\\n3. Accept-Language 헤더가 없는 경우 기본 한국어로 동작하는지 확인\\n4. 지원하지 않는 언어 요청 시 기본 언어로 동작하는지 확인\\n5. 기존 API 16 동작이 변경되지 않았는지 확인\\n6. 컴파일 오류가 없는지 확인",
+      "analysisResult": "AI 기능 통합 구현. GeminiService.java는 완벽히 수정 완료된 상태에서 FocusAnalysisService.getMonthlyAIAnalysis() 메서드만 수정하면 완전한 AI 기능 구현 완료. TaskController와 TaskService는 이미 완벽히 구현되어 있음.",
+      "summary": "TaskController의 AI 목표 분석 엔드포인트에 Accept-Language 헤더 지원 성공적으로 추가. en/ko 언어별 분기 처리, 기본값 한국어 설정, extractLanguageCode 헬퍼 메서드 구현, 상세 로깅 추가로 완전한 다국어 지원 구현. 하위 호환성 완전 보장.",
+      "completedAt": "2025-09-07T06:09:07.001Z"
+    },
+    {
+      "id": "7f627def-efbc-4fa2-84f9-72aa7cedcca4",
+      "name": "AI 기능 통합 테스트 및 검증",
+      "description": "구현된 AI 기능들이 올바르게 동작하는지 포괄적으로 테스트하고 검증합니다. API 16, 17, 33이 완전히 작동하는지 확인합니다.",
+      "notes": "실제 API 테스트는 포스트맨이나 curl로 수행. 주요 시나리오별 예상 동작 확인에 집중.",
+      "status": "pending",
+      "dependencies": [
+        {
+          "taskId": "6ade2cf3-5489-4b18-a9d4-20cbcc37b1fd"
+        }
+      ],
+      "createdAt": "2025-09-07T06:01:18.268Z",
+      "updatedAt": "2025-09-07T06:01:18.268Z",
+      "relatedFiles": [
+        {
+          "path": "src/main/java/com/fivlo/fivlo_backend/domain/pomodoro/controller/FocusAnalysisController.java",
+          "type": "REFERENCE",
+          "description": "API 33 엔드포인트 검증",
+          "lineStart": 99,
+          "lineEnd": 115
+        },
+        {
+          "path": "src/main/java/com/fivlo/fivlo_backend/domain/task/controller/TaskController.java",
+          "type": "REFERENCE",
+          "description": "API 16, 17 엔드포인트 검증",
+          "lineStart": 151,
+          "lineEnd": 168
+        }
+      ],
+      "implementationGuide": "1. 컴파일 테스트: gradlew compileJava 실행\\n2. API 33 테스트: 월간 AI 분석 엔드포인트 동작 확인\\n3. API 16 테스트: AI 목표 분석 (한국어/영어) 동작 확인\\n4. API 17 테스트: AI 추천 Task 추가 기능 확인\\n5. 엣지 케이스 테스트:\\n   - 데이터 부족 시나리오\\n   - AI 응답 파싱 실패 시나리오\\n   - 잘못된 언어 코드 요청\\n6. 로그 출력 확인 및 성능 검증",
+      "verificationCriteria": "1. 모든 AI 관련 엔드포인트가 정상 응답하는지 확인\\n2. 한국어/영어 언어별 응답이 올바른지 확인\\n3. AI 응답 구조가 API 설계서와 일치하는지 확인\\n4. 에러 상황에서 적절한 에러 응답이 오는지 확인\\n5. 로깅이 적절히 기록되는지 확인\\n6. 전체적인 AI 기능 플로우가 완성되었는지 확인",
+      "analysisResult": "AI 기능 통합 구현. GeminiService.java는 완벽히 수정 완료된 상태에서 FocusAnalysisService.getMonthlyAIAnalysis() 메서드만 수정하면 완전한 AI 기능 구현 완료. TaskController와 TaskService는 이미 완벽히 구현되어 있음."
     }
   ]
 }

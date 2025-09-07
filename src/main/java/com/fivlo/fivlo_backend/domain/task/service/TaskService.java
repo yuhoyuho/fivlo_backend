@@ -190,12 +190,38 @@ public class TaskService {
                     return new IllegalArgumentException("해당 Task를 찾을 수 없습니다.");
                 });
         
-        // TODO: 매일 반복 Task의 미래 일정 삭제 처리는 향후 구현
-        // 현재는 단일 Task 삭제만 처리
+        // 반복 Task 삭제 로직 구현
+        int deletedCount = 1; // 현재 Task 포함
         
+        // 매일 반복 Task이고 미래 Task도 삭제하라는 요청인 경우
+        if (task.getRepeatType() == Task.RepeatType.DAILY && 
+            Boolean.TRUE.equals(request.getDeleteFutureTasks())) {
+            
+            log.info("매일 반복 Task의 미래 일정 삭제 시작 - userId: {}, taskId: {}, currentDueDate: {}", 
+                     user.getId(), taskId, task.getDueDate());
+            
+            // 미래 반복 Task 조회
+            List<Task> futureTasks = taskRepository.findFutureRepeatTasks(
+                user, Task.RepeatType.DAILY, task.getDueDate());
+            
+            if (!futureTasks.isEmpty()) {
+                log.info("삭제할 미래 반복 Task 개수: {}", futureTasks.size());
+                
+                // 미래 반복 Task 일괄 삭제
+                taskRepository.deleteAll(futureTasks);
+                deletedCount += futureTasks.size();
+                
+                log.info("미래 반복 Task 삭제 완료 - 삭제된 개수: {}", futureTasks.size());
+            } else {
+                log.info("삭제할 미래 반복 Task가 없음");
+            }
+        }
+        
+        // 현재 Task 삭제 (항상 실행)
         taskRepository.delete(task);
         
-        log.info("Task 삭제 완료 - userId: {}, taskId: {}", user.getId(), taskId);
+        log.info("Task 삭제 완료 - userId: {}, taskId: {}, 총 삭제된 Task 개수: {}", 
+                 user.getId(), taskId, deletedCount);
         
         return TaskMessageResponse.deleteSuccess();
     }
@@ -227,14 +253,15 @@ public class TaskService {
      * API 16 / 사용자의 목표를 분석하고 AI가 추천하는 Task 목록을 반환
      */
     @Transactional(readOnly = true)
-    public GoalAnalysisResponseDto analyzeAndRecommendTasks(GoalAnalysisRequestDto requestDto) {
+    public GoalAnalysisResponseDto analyzeAndRecommendTasks(GoalAnalysisRequestDto requestDto, String languageCode) {
         String jsonResponse = geminiService.analyzeGoalAndRecommendTasks(
                 requestDto.getGoalContent(),
                 requestDto.getGoalType(),
                 requestDto.getStartDate(),
-                requestDto.getEndDate()
+                requestDto.getEndDate(),
+                languageCode  // 언어 코드 추가
         );
-        log.info("AI 응답 (JSON 문자열): {}", jsonResponse);
+        log.info("AI 응답 (JSON 문자열, language={}): {}", languageCode, jsonResponse);
 
         try {
             return objectMapper.readValue(jsonResponse, GoalAnalysisResponseDto.class);
@@ -243,6 +270,15 @@ public class TaskService {
             throw new RuntimeException("AI 응답을 처리하는 중 오류가 발생했습니다.", e);
         }
     }
+    
+    /**
+     * API 16 / 기존 메서드 호환성 유지 (기본값: 한국어)
+     */
+    @Transactional(readOnly = true)
+    public GoalAnalysisResponseDto analyzeAndRecommendTasks(GoalAnalysisRequestDto requestDto) {
+        return analyzeAndRecommendTasks(requestDto, "ko");
+    }
+        
 
     /**
      * API 17 / AI가 추천한 Task 목록을 사용자의 Task 목록에 일괄 추가

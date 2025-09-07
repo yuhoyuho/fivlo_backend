@@ -54,11 +54,12 @@ public class GeminiService {
     }
 
 
-    /** 일반 텍스트 응답용 동기 호출 (집중도 분석용) */
-    public String generatePlainText(String prompt) {
+    /** 일반 텍스트 응답용 동기 호출 (집중도 분석용) - 언어별 지원 */
+    public String generatePlainText(String prompt, String languageCode) {
         try {
             if (prompt == null) throw new IllegalArgumentException("prompt is null");
-            logger.debug("Generating plain text, prompt preview: {}", prompt.substring(0, Math.min(100, prompt.length())));
+            logger.debug("Generating plain text, prompt preview: {}, language: {}", 
+                        prompt.substring(0, Math.min(100, prompt.length())), languageCode);
 
             // 일반 텍스트 응답을 위한 설정 (JSON 강제 없음)
             GenerateContentConfig cfg = GenerateContentConfig.builder()
@@ -69,55 +70,116 @@ public class GeminiService {
             logger.debug("Generated plain text length: {}", (text != null ? text.length() : 0));
 
             if (text == null || text.trim().isEmpty()) {
-                return "분석 결과를 생성할 수 없습니다.";
+                // 언어별 기본 메시지
+                return getDefaultErrorMessage(languageCode);
             }
 
             return text.trim();
 
         } catch (Exception e) {
             logger.error("Error generating plain text with Gemini", e);
-            throw new RuntimeException("AI 텍스트 생성 중 오류가 발생했습니다: " + e.getMessage(), e);
+            // 언어별 에러 메시지
+            String errorMessage = getErrorMessage(languageCode);
+            throw new RuntimeException(errorMessage + ": " + e.getMessage(), e);
         }
+    }
+    
+    /** 기존 메서드 호환성 유지 (기본값: 한국어) */
+    public String generatePlainText(String prompt) {
+        return generatePlainText(prompt, "ko");
     }
 
     // === 프롬프트 도우미들 ===
 
+    public String analyzeGoalAndRecommendTasks(String goalContent, String goalType, String startDate, String endDate, String languageCode) {
+        // 언어별 프롬프트 생성
+        String prompt = buildTaskRecommendationPrompt(goalContent, goalType, startDate, endDate, languageCode);
+        
+        return generateContent(prompt);
+    }
+    
+    // 기존 메서드 호환성 유지 (기본값: 한국어)
     public String analyzeGoalAndRecommendTasks(String goalContent, String goalType, String startDate, String endDate) {
+        return analyzeGoalAndRecommendTasks(goalContent, goalType, startDate, endDate, "ko");
+    }
+    
+    /**
+     * 언어별 Task 추천 프롬프트 생성
+     */
+    private String buildTaskRecommendationPrompt(String goalContent, String goalType, String startDate, String endDate, String languageCode) {
         StringBuilder prompt = new StringBuilder();
-        prompt.append("당신은 계획 설계 전문가입니다. 다음 목표를 완료할 수 있도록 구체적인 단계를 제시해주세요.\n\n")
-                .append("- 목표: ").append(goalContent).append("\n")
-                .append("- 목표 유형: ").append(goalType).append("\n");
-
-        if (startDate != null && endDate != null) {
-            prompt.append("- 기간: ").append(startDate).append(" ~ ").append(endDate).append("\n");
-        }
-
-        prompt.append("응답은 반드시 아래 JSON 형식으로만, 다른 설명이나 마크다운 없이 제공해야 합니다.\n")
-                .append("{\n")
-                .append("  \"recommended_tasks\": [\n")
-                .append("    {\n")
-                .append("      \"content\": \"AI가 생성한 구체적인 Task 내용\",\n")
-                .append("      \"due_date\": \"YYYY-MM-DD\",\n")
-                .append("      \"repeat_type\": \"DAILY\",\n")
-                .append("      \"end_date\": \"YYYY-MM-DD 또는 null\"\n")
-                .append("    }\n")
-                .append("  ]\n")
-                .append("}\n");
-
-        prompt.append("- '목표'를 달성하기 위한 구체적이고 실천 가능한 Task를 3개에서 5개 사이로 생성하세요.\n");
-
-        if ("DEFINITE".equalsIgnoreCase(goalType)) {
-            prompt.append("- 각 Task의 'due_date'는 '").append(startDate).append("'와 '").append(endDate).append("' 사이에서 논리적으로 분배되어야 합니다.\n");
-            prompt.append("- 모든 Task의 'end_date'는 반드시 '").append(endDate).append("'로 설정하세요.\n");
-        } else { // INDEFINITE 또는 null인 경우
-            prompt.append("- 단계는 매주 반복할 수 있는 정도로 1주에 3~5개 정도로 제안하세요.\n");
-            prompt.append("- 모든 Task의 'end_date'는 반드시 null로 설정하세요.\n");
-        }
-
-        prompt.append("- 모든 Task의 'repeat_type'은 'DAILY'로 고정하세요.\n");
-        prompt.append("- 'content'에 들어갈 내용은 최대 10자 이내로 최대한 구체적으로 설정하세요.");
-
-        return generateContent(prompt.toString());
+        
+        if ("en".equalsIgnoreCase(languageCode)) {
+            // 영어 프롬프트
+            prompt.append("You are a planning design expert. Please provide specific steps to complete the following goal.\\n\\n")
+                    .append("- Goal: ").append(goalContent).append("\\n")
+                    .append("- Goal Type: ").append(goalType).append("\\n");
+        
+            if (startDate != null && endDate != null) {
+                prompt.append("- Period: ").append(startDate).append(" ~ ").append(endDate).append("\\n");
+            }
+        
+            prompt.append("Response must be provided only in the JSON format below, without any other explanations or markdown.\\n")
+                    .append("{\\n")
+                    .append("  \\\"recommended_tasks\\\": [\\n")
+                    .append("    {\\n")
+                    .append("      \\\"content\\\": \\\"Specific task content generated by AI\\\",\\n")
+                    .append("      \\\"due_date\\\": \\\"YYYY-MM-DD\\\",\\n")
+                    .append("      \\\"repeat_type\\\": \\\"DAILY\\\",\\n")
+                    .append("      \\\"end_date\\\": \\\"YYYY-MM-DD or null\\\"\\n")
+                    .append("    }\\n")
+                    .append("  ]\\n")
+                    .append("}\\n");
+        
+            prompt.append("- Generate 3 to 5 specific and actionable tasks to achieve the 'goal'.\\n");
+        
+            if ("DEFINITE".equalsIgnoreCase(goalType)) {
+                prompt.append("- Each task's 'due_date' should be logically distributed between '").append(startDate).append("' and '").append(endDate).append("'.\\n");
+                prompt.append("- All tasks' 'end_date' must be set to '").append(endDate).append("'.\\n");
+            } else { // INDEFINITE or null
+                prompt.append("- Suggest about 3-5 tasks per week that can be repeated weekly.\\n");
+                prompt.append("- All tasks' 'end_date' must be set to null.\\n");
+            }
+        
+            prompt.append("- All tasks' 'repeat_type' should be fixed to 'DAILY'.\\n");
+            prompt.append("- Content should be as specific as possible within 20 characters.");
+            
+        } else {
+            // 한국어 프롬프트 (기본값)
+            prompt.append("당신은 계획 설계 전문가입니다. 다음 목표를 완료할 수 있도록 구체적인 단계를 제시해주세요.\\n\\n")
+                    .append("- 목표: ").append(goalContent).append("\\n")
+                    .append("- 목표 유형: ").append(goalType).append("\\n");
+            
+            if (startDate != null && endDate != null) {
+                prompt.append("- 기간: ").append(startDate).append(" ~ ").append(endDate).append("\\n");
+            }
+            
+            prompt.append("응답은 반드시 아래 JSON 형식으로만, 다른 설명이나 마크다운 없이 제공해야 합니다.\\n")
+                    .append("{\\n")
+                    .append("  \\\"recommended_tasks\\\": [\\n")
+                    .append("    {\\n")
+                    .append("      \\\"content\\\": \\\"AI가 생성한 구체적인 Task 내용\\\",\\n")
+                    .append("      \\\"due_date\\\": \\\"YYYY-MM-DD\\\",\\n")
+                    .append("      \\\"repeat_type\\\": \\\"DAILY\\\",\\n")
+                    .append("      \\\"end_date\\\": \\\"YYYY-MM-DD 또는 null\\\"\\n")
+                    .append("    }\\n")
+                    .append("  ]\\n")
+                    .append("}\\n");
+            
+            prompt.append("- '목표'를 달성하기 위한 구체적이고 실천 가능한 Task를 3개에서 5개 사이로 생성하세요.\\n");
+            
+            if ("DEFINITE".equalsIgnoreCase(goalType)) {
+                prompt.append("- 각 Task의 'due_date'는 '").append(startDate).append("'와 '").append(endDate).append("' 사이에서 논리적으로 분배되어야 합니다.\\n");
+                prompt.append("- 모든 Task의 'end_date'는 반드시 '").append(endDate).append("'로 설정하세요.\\n");
+            } else { // INDEFINITE 또는 null인 경우
+                prompt.append("- 단계는 매주 반복할 수 있는 정도로 1주에 3~5개 정도로 제안하세요.\\n");
+                prompt.append("- 모든 Task의 'end_date'는 반드시 null로 설정하세요.\\n");
+            }
+            
+            prompt.append("- 모든 Task의 'repeat_type'은 'DAILY'로 고정하세요.\\n");
+            prompt.append("- 'content'에 들어갈 내용은 최대 10자 이내로 최대한 구체적으로 설정하세요.");
+            }
+        return prompt.toString();
     }
 
     public String recommendTimeAttackSteps(String goalName, Integer totalDurationInSeconds, String languageCode) {
@@ -172,19 +234,49 @@ public class GeminiService {
     }
     
 
+    public String generateMonthlyAnalysisSuggestions(String analysisData, String languageCode) {
+        // 언어별 프롬프트 생성
+        String prompt = buildMonthlyAnalysisPrompt(analysisData, languageCode);
+        
+        return generateContent(prompt);
+    }
+    
+    // 기존 메서드 호환성 유지 (기본값: 한국어)
     public String generateMonthlyAnalysisSuggestions(String analysisData) {
+        return generateMonthlyAnalysisSuggestions(analysisData, "ko");
+    }
+    
+    /**
+     * 언어별 월간 분석 프롬프트 생성
+     */
+    private String buildMonthlyAnalysisPrompt(String analysisData, String languageCode) {
         StringBuilder prompt = new StringBuilder();
-        prompt.append("당신은 집중도 분석 전문가입니다. 사용자의 월간 포모도로 집중 데이터를 분석하고 맞춤형 제안을 해주세요.\n\n")
-                .append("분석 데이터:\n").append(analysisData).append("\n\n")
-                .append("오직 아래 JSON 형식으로만, 추가 텍스트 없이 응답하세요.\n")
-                .append("{\n")
-                .append("  \"optimal_start_time_info\": {\"time\": \"AM/PM HH:MM\", \"ai_comment\": \"최적 시간대 선택 이유\"},\n")
-                .append("  \"optimal_day_info\": [{\"day\": \"요일명\", \"ai_comment\": \"해당 요일이 좋은 이유\"}],\n")
-                .append("  \"low_concentration_time_info\": {\"time_range\": \"PM HH:MM ~ HH:MM\", \"ai_comment\": \"집중도가 낮은 시간대 활용 방법\"},\n")
-                .append("  \"activity_suggestions\": {\"suggestions\": [{\"activity_name\": \"활동명\", \"time_range\": \"추천 시간대\"}], \"ai_comment\": \"활동별 시간 배치 조언\"}\n")
-                .append("}\n");
-
-        return generateContent(prompt.toString());
+        
+        if ("en".equalsIgnoreCase(languageCode)) {
+            // 영어 프롬프트
+            prompt.append("You are a focus analysis expert. Please analyze the user's monthly Pomodoro focus data and provide customized suggestions.\\n\\n")
+                    .append("Analysis Data:\\n").append(analysisData).append("\\n\\n")
+                    .append("Respond only in the JSON format below, without any additional text.\\n")
+                    .append("{\\n")
+                    .append("  \\\"optimal_start_time_info\\\": {\\\"time\\\": \\\"AM/PM HH:MM\\\", \\\"ai_comment\\\": \\\"Reason for optimal time selection\\\"},\\n")
+                    .append("  \\\"optimal_day_info\\\": [{\\\"day\\\": \\\"Day name\\\", \\\"ai_comment\\\": \\\"Why this day is good\\\"}],\\n")
+                    .append("  \\\"low_concentration_time_info\\\": {\\\"time_range\\\": \\\"PM HH:MM ~ HH:MM\\\", \\\"ai_comment\\\": \\\"How to utilize low concentration time\\\"},\\n")
+                    .append("  \\\"activity_suggestions\\\": {\\\"suggestions\\\": [{\\\"activity_name\\\": \\\"Activity name\\\", \\\"time_range\\\": \\\"Recommended time\\\"}], \\\"ai_comment\\\": \\\"Activity time allocation advice\\\"}\\n")
+                    .append("}\\n");
+        } else {
+            // 한국어 프롬프트 (기본값)
+            prompt.append("당신은 집중도 분석 전문가입니다. 사용자의 월간 포모도로 집중 데이터를 분석하고 맞춤형 제안을 해주세요.\\n\\n")
+                    .append("분석 데이터:\\n").append(analysisData).append("\\n\\n")
+                    .append("오직 아래 JSON 형식으로만, 추가 텍스트 없이 응답하세요.\\n")
+                    .append("{\\n")
+                    .append("  \\\"optimal_start_time_info\\\": {\\\"time\\\": \\\"AM/PM HH:MM\\\", \\\"ai_comment\\\": \\\"최적 시간대 선택 이유\\\"},\\n")
+                    .append("  \\\"optimal_day_info\\\": [{\\\"day\\\": \\\"요일명\\\", \\\"ai_comment\\\": \\\"해당 요일이 좋은 이유\\\"}],\\n")
+                    .append("  \\\"low_concentration_time_info\\\": {\\\"time_range\\\": \\\"PM HH:MM ~ HH:MM\\\", \\\"ai_comment\\\": \\\"집중도가 낮은 시간대 활용 방법\\\"},\\n")
+                    .append("  \\\"activity_suggestions\\\": {\\\"suggestions\\\": [{\\\"activity_name\\\": \\\"활동명\\\", \\\"time_range\\\": \\\"추천 시간대\\\"}], \\\"ai_comment\\\": \\\"활동별 시간 배치 조언\\\"}\\n")
+                    .append("}\\n");
+        }
+        
+        return prompt.toString();
     }
 
     /**
@@ -233,5 +325,27 @@ public class GeminiService {
 
         // 매칭 실패 시, 일단 시작부터 끝까지 반환(파서가 다시 검증)
         return text.substring(start).trim();
+    }
+    
+    // === 언어별 메시지 헬퍼 메서드들 ===
+    
+    /**
+     * 언어별 기본 에러 메시지 반환
+     */
+    private String getDefaultErrorMessage(String languageCode) {
+        if ("en".equalsIgnoreCase(languageCode)) {
+            return "Unable to generate analysis results.";
+        }
+        return "분석 결과를 생성할 수 없습니다.";
+    }
+    
+    /**
+     * 언어별 에러 메시지 반환  
+     */
+    private String getErrorMessage(String languageCode) {
+        if ("en".equalsIgnoreCase(languageCode)) {
+            return "An error occurred while generating AI text";
+        }
+        return "AI 텍스트 생성 중 오류가 발생했습니다";
     }
 }

@@ -147,12 +147,25 @@ public class TaskController {
     /** 목표 세분화
      * HTTP : POST
      * EndPoint : /api/v1/ai/goals
+     * 언어별 지원: Accept-Language 헤더 (ko, en 지원, 기본값: ko)
      */
     @PostMapping(Routes.AI_GOALS)
     public ResponseEntity<GoalAnalysisResponseDto> analyzeGoalAndGetRecommendations(
-            @RequestBody GoalAnalysisRequestDto request) {
-
-        return ResponseEntity.ok(taskService.analyzeAndRecommendTasks(request));
+            @RequestBody GoalAnalysisRequestDto request,
+            @RequestHeader(value = "Accept-Language", required = false, defaultValue = "ko") String acceptLanguage) {
+    
+        log.info("AI 목표 분석 요청 - goalContent: {}, goalType: {}, language: {}", 
+                request.getGoalContent(), request.getGoalType(), acceptLanguage);
+    
+        // Accept-Language 헤더에서 언어 코드 추출 (en, ko 지원)
+        String languageCode = extractLanguageCode(acceptLanguage);
+        
+        GoalAnalysisResponseDto response = taskService.analyzeAndRecommendTasks(request, languageCode);
+        
+        log.info("AI 목표 분석 응답 완료 - language: {}, recommendedTasksCount: {}", 
+                languageCode, response.getRecommendedTasks().size());
+    
+        return ResponseEntity.ok(response);
     }
 
     /** 루틴 설정
@@ -179,6 +192,28 @@ public class TaskController {
 
         TaskCoinResponse response = taskService.earnTaskCoin(userDetails.getUser().getId(), dto);
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Accept-Language 헤더에서 언어 코드 추출
+     * 지원 언어: ko (한국어), en (영어)
+     * 기본값: ko
+     */
+    private String extractLanguageCode(String acceptLanguage) {
+        if (acceptLanguage == null || acceptLanguage.trim().isEmpty()) {
+            return "ko"; // 기본값: 한국어
+        }
+        
+        // Accept-Language 헤더 예시: "en-US,en;q=0.9,ko;q=0.8"
+        String language = acceptLanguage.toLowerCase().trim();
+        
+        if (language.startsWith("en")) {
+            return "en"; // 영어
+        } else if (language.startsWith("ko")) {
+            return "ko"; // 한국어
+        } else {
+            return "ko"; // 지원하지 않는 언어인 경우 기본값
+        }
     }
 
 }

@@ -1,0 +1,56 @@
+{
+  "tasks": [
+    {
+      "id": "d07e1b67-3077-4025-938e-5d1c2587a30a",
+      "name": "TaskRepository에 반복 Task 조회 메서드 추가",
+      "description": "TaskRepository 인터페이스에 매일 반복되는 Task 중 미래 날짜에 해당하는 Task들을 조회하는 메서드를 추가합니다. 기존 JPQL 쿼리 패턴을 따라 @Query 어노테이션을 사용하여 구현합니다.",
+      "notes": "기존 TaskRepository의 쿼리 패턴과 완전히 일치하도록 구현. LEFT JOIN FETCH는 불필요하므로 단순 조회로 처리.",
+      "status": "completed",
+      "dependencies": [],
+      "createdAt": "2025-09-07T05:34:21.043Z",
+      "updatedAt": "2025-09-07T05:36:38.609Z",
+      "relatedFiles": [
+        {
+          "path": "src/main/java/com/fivlo/fivlo_backend/domain/task/repository/TaskRepository.java",
+          "type": "TO_MODIFY",
+          "description": "반복 Task 조회 메서드 추가할 파일",
+          "lineStart": 48,
+          "lineEnd": 48
+        }
+      ],
+      "implementationGuide": "1. TaskRepository에 findFutureRepeatTasks() 메서드 시그니처 정의\\n2. @Query 어노테이션으로 JPQL 쿼리 작성:\\n   - RepeatType이 DAILY인 Task 필터링\\n   - dueDate가 현재 Task의 dueDate보다 큰 것들만 조회\\n   - endDate 조건 확인 (null이거나 dueDate보다 크거나 같은 경우)\\n   - user 조건으로 소유자 확인\\n3. @Param 어노테이션으로 파라미터 바인딩\\n4. 기존 쿼리들과 동일한 네이밍 컨벤션 적용 (findByUserAnd...)",
+      "verificationCriteria": "1. 메서드 시그니처가 기존 패턴과 일치하는지 확인\\n2. JPQL 쿼리 문법이 올바른지 확인\\n3. 파라미터 바인딩이 정확한지 확인\\n4. 반복 Task 조건(RepeatType.DAILY)이 올바르게 필터링되는지 확인\\n5. 컴파일 오류가 없는지 확인",
+      "analysisResult": "TaskService에서 반복 Task 삭제 로직 구현. 현재 deleteFutureTasks 파라미터가 무시되고 단일 Task만 삭제되는 문제를 해결하여 API 11 스펙을 완전히 구현. 기존 Spring Data JPA, @Transactional, 로깅 패턴을 완전히 준수하며 하위 호환성을 유지하면서 반복 Task 삭제 기능을 추가.",
+      "summary": "TaskRepository에 findFutureRepeatTasks 메서드 성공적으로 추가. 기존 JPQL 쿼리 패턴을 완전히 준수하며 반복 Task 조회 기능 구현. RepeatType.DAILY 필터링, 미래 날짜 조건, endDate 검증 로직 포함. 컴파일 오류 없이 정상 동작 확인.",
+      "completedAt": "2025-09-07T05:36:38.609Z"
+    },
+    {
+      "id": "2f6dc390-c25e-42c0-95b2-b78e544e2b4f",
+      "name": "TaskService에서 반복 Task 삭제 로직 구현",
+      "description": "TaskService.deleteTask() 메서드의 TODO 부분을 실제 구현으로 대체합니다. deleteFutureTasks 파라미터 값에 따라 단일 Task 삭제 또는 반복 Task 일괄 삭제를 수행하도록 비즈니스 로직을 구현합니다.",
+      "notes": "기존 로깅 패턴, 예외 처리 패턴, 트랜잭션 패턴을 완전히 유지. 하위 호환성 보장을 위해 기본 동작은 변경하지 않음.",
+      "status": "completed",
+      "dependencies": [
+        {
+          "taskId": "d07e1b67-3077-4025-938e-5d1c2587a30a"
+        }
+      ],
+      "createdAt": "2025-09-07T05:34:21.043Z",
+      "updatedAt": "2025-09-07T05:38:21.479Z",
+      "relatedFiles": [
+        {
+          "path": "src/main/java/com/fivlo/fivlo_backend/domain/task/service/TaskService.java",
+          "type": "TO_MODIFY",
+          "description": "deleteTask 메서드의 TODO 부분 구현",
+          "lineStart": 182,
+          "lineEnd": 201
+        }
+      ],
+      "implementationGuide": "1. 기존 Task 조회 및 검증 로직 유지\\n2. Task의 RepeatType 확인 로직 추가\\n3. deleteFutureTasks 파라미터 분기 처리:\\n   - false: 기존 단일 삭제 로직 유지\\n   - true + RepeatType.DAILY: 반복 Task 조회 후 일괄 삭제\\n4. 미래 반복 Task 조회 시 새로 추가된 Repository 메서드 사용\\n5. 삭제된 Task 개수 로깅 추가\\n6. @Transactional 어노테이션 활용하여 원자성 보장",
+      "verificationCriteria": "1. deleteFutureTasks=false 시 기존 동작과 동일한지 확인\\n2. deleteFutureTasks=true 시 반복 Task들이 올바르게 삭제되는지 확인\\n3. RepeatType.NONE인 Task는 영향받지 않는지 확인\\n4. 로깅이 적절히 기록되는지 확인\\n5. 트랜잭션이 올바르게 동작하는지 확인\\n6. 예외 상황에서 롤백이 정상 동작하는지 확인",
+      "analysisResult": "TaskService에서 반복 Task 삭제 로직 구현. 현재 deleteFutureTasks 파라미터가 무시되고 단일 Task만 삭제되는 문제를 해결하여 API 11 스펙을 완전히 구현. 기존 Spring Data JPA, @Transactional, 로깅 패턴을 완전히 준수하며 하위 호환성을 유지하면서 반복 Task 삭제 기능을 추가.",
+      "summary": "TaskService.deleteTask()에서 반복 Task 삭제 로직 성공적으로 구현. TODO 부분을 완전한 비즈니스 로직으로 대체하여 deleteFutureTasks 파라미터가 실제 동작하도록 구현. RepeatType.DAILY 확인, 미래 Task 조회, 일괄 삭제, 로깅 강화 포함. 기존 트랜잭션과 예외 처리 패턴 완전 유지하며 하위 호환성 보장.",
+      "completedAt": "2025-09-07T05:38:21.479Z"
+    }
+  ]
+}

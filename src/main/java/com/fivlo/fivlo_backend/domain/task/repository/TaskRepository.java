@@ -45,4 +45,18 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
      */
     @Query("SELECT COUNT(t) FROM Task t WHERE t.user = :user AND t.dueDate = :date AND t.isCompleted = true")
     long countCompletedTasksByUserAndDate(@Param("user") User user, @Param("date") LocalDate date);
+
+    /**
+     * 특정 사용자의 반복 Task 중 미래 날짜에 해당하는 Task들을 조회
+     * API 11: Task 삭제 시 미래 반복 Task 일괄 삭제용
+     */
+    @Query("SELECT t FROM Task t " +
+           "WHERE t.user = :user " +
+           "AND t.repeatType = :repeatType " +
+           "AND t.dueDate > :currentDueDate " +
+           "AND (t.endDate IS NULL OR t.endDate >= t.dueDate) " +
+           "ORDER BY t.dueDate ASC")
+    List<Task> findFutureRepeatTasks(@Param("user") User user, 
+                                     @Param("repeatType") Task.RepeatType repeatType,
+                                     @Param("currentDueDate") LocalDate currentDueDate);
 }

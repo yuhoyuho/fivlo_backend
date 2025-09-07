@@ -95,21 +95,26 @@ public class FocusAnalysisController {
      * API 33: 월간 AI 분석 제안서 조회
      * GET /api/v1/analysis/monthly/ai-suggestions?year=2025&month=7
      * 월간 집중 기록을 바탕으로 AI가 분석한 맞춤형 제안을 조회합니다.
+     * 언어별 지원: Accept-Language 헤더 (ko, en 지원, 기본값: ko)
      */
     @GetMapping(Routes.ANALYSIS_MONTHLY_AI_SUGGESTIONS)
     public ResponseEntity<AIAnalysisResponse> getMonthlyAIAnalysis(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @RequestParam int year,
-            @RequestParam int month) {
+            @RequestParam int month,
+            @RequestHeader(value = "Accept-Language", required = false, defaultValue = "ko") String acceptLanguage) {
 
-        log.info("월간 AI 분석 요청 - userId: {}, year: {}, month: {}", 
-                userDetails.getUser().getId(), year, month);
+        log.info("월간 AI 분석 요청 - userId: {}, year: {}, month: {}, language: {}", 
+                userDetails.getUser().getId(), year, month, acceptLanguage);
+
+        // Accept-Language 헤더에서 언어 코드 추출 (en, ko 지원)
+        String languageCode = extractLanguageCode(acceptLanguage);
 
         User user = userDetails.getUser();
-        AIAnalysisResponse response = focusAnalysisService.getMonthlyAIAnalysis(user, year, month);
+        AIAnalysisResponse response = focusAnalysisService.getMonthlyAIAnalysis(user, year, month, languageCode);
 
-        log.info("월간 AI 분석 응답 완료 - userId: {}, year: {}, month: {}", 
-                userDetails.getUser().getId(), year, month);
+        log.info("월간 AI 분석 응답 완료 - userId: {}, year: {}, month: {}, language: {}", 
+                userDetails.getUser().getId(), year, month, languageCode);
 
         return ResponseEntity.ok(response);
     }
@@ -158,5 +163,27 @@ public class FocusAnalysisController {
                 userDetails.getUser().getId(), goalId, response.getGoalInfo().getTotalFocusTime());
 
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Accept-Language 헤더에서 언어 코드 추출
+     * 지원 언어: ko (한국어), en (영어)
+     * 기본값: ko
+     */
+    private String extractLanguageCode(String acceptLanguage) {
+        if (acceptLanguage == null || acceptLanguage.trim().isEmpty()) {
+            return "ko"; // 기본값: 한국어
+        }
+        
+        // Accept-Language 헤더 예시: "en-US,en;q=0.9,ko;q=0.8"
+        String language = acceptLanguage.toLowerCase().trim();
+        
+        if (language.startsWith("en")) {
+            return "en"; // 영어
+        } else if (language.startsWith("ko")) {
+            return "ko"; // 한국어
+        } else {
+            return "ko"; // 지원하지 않는 언어인 경우 기본값
+        }
     }
 }
