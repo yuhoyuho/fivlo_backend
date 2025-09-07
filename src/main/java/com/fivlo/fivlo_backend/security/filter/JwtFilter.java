@@ -1,5 +1,6 @@
 package com.fivlo.fivlo_backend.security.filter;
 
+import com.fivlo.fivlo_backend.common.Routes;
 import com.fivlo.fivlo_backend.security.CustomUserDetails;
 import com.fivlo.fivlo_backend.security.CustomUserDetailsService;
 import com.fivlo.fivlo_backend.security.JwtTokenProvider;
@@ -23,6 +24,11 @@ public class JwtFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
+
+        if(request.getRequestURI().equals(Routes.AUTH_REFRESH)) {
+            filterChain.doFilter(request, response);
+            return;
+        }
 
         String authorization = request.getHeader("Authorization");
         if(authorization == null) {

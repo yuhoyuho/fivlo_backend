@@ -17,6 +17,9 @@ public class JwtConfig {
     @Value("${jwt.expiration}")
     private Long jwtExpiration;
 
+    @Value("${jwt.refresh-expiration}")
+    private Long jwtRefreshExpiration;
+
     /**
      * JWT Secret Key 반환
      * @return JWT 서명에 사용할 비밀키
@@ -31,6 +34,13 @@ public class JwtConfig {
      */
     public Long getJwtExpiration() {
         return jwtExpiration;
+    }
+
+    /**
+     * JWT Refresh 토큰 만료시간 반환
+     */
+    public Long getJwtRefreshExpiration() {
+        return jwtRefreshExpiration;
     }
 
     /**

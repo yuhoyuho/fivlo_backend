@@ -1,5 +1,9 @@
 package com.fivlo.fivlo_backend.domain.user.service;
 
+import com.fivlo.fivlo_backend.domain.user.auth.dto.ReissueRequestDto;
+import com.fivlo.fivlo_backend.domain.user.auth.dto.TokenResponseDto;
+import com.fivlo.fivlo_backend.domain.user.auth.entity.RefreshEntity;
+import com.fivlo.fivlo_backend.domain.user.auth.repository.RefreshRepository;
 import com.fivlo.fivlo_backend.domain.user.dto.*;
 import com.fivlo.fivlo_backend.domain.user.entity.User;
 import com.fivlo.fivlo_backend.domain.user.repository.UserRepository;
@@ -27,6 +31,7 @@ public class UserService {
     private final JwtTokenProvider jwtTokenProvider;
     private final List<OAuth2TokenVerifier> tokenVerifiers;
     private final CoinTransactionService coinTransactionService;
+    private final RefreshRepository refreshRepository;
 
     /**
      * 이메일 회원가입 로직
@@ -58,10 +63,17 @@ public class UserService {
 
         User savedUser = userRepository.save(user);
 
-        // jwt 발급
-        String token = jwtTokenProvider.generateToken(savedUser.getId());
+        // jwt access 발급
+        String access = jwtTokenProvider.generateAccessToken(savedUser.getId());
 
-        return new JoinUserResponse(token, savedUser.getId(), savedUser.getOnboardingType());
+        // jwt refresh 발급
+        String refresh = jwtTokenProvider.generateRefreshToken(savedUser.getId());
+
+        // Redis에 refresh 토큰 저장
+        RefreshEntity redisToken = new RefreshEntity(savedUser.getId(), refresh);
+        refreshRepository.save(redisToken);
+
+        return new JoinUserResponse(access, refresh, savedUser.getId(), savedUser.getOnboardingType());
     }
 
     /**
@@ -134,10 +146,17 @@ public class UserService {
         // 신규 사용자인지 검증
         boolean isNewUser = user.getOnboardingType() == null;
 
-        // jwt 발급
-        String token = jwtTokenProvider.generateToken(user.getId());
+        // jwt access 발급
+        String access = jwtTokenProvider.generateAccessToken(user.getId());
 
-        return new SocialLoginResponse(isNewUser, token, user.getId(), user.getOnboardingType());
+        // jwt refresh 발급
+        String refresh = jwtTokenProvider.generateRefreshToken(user.getId());
+
+        // Redis에 refresh 토큰 저장
+        RefreshEntity redisToken = new RefreshEntity(user.getId(), refresh);
+        refreshRepository.save(redisToken);
+
+        return new SocialLoginResponse(isNewUser, access, refresh, user.getId(), user.getOnboardingType());
     }
 
     /**
@@ -166,5 +185,37 @@ public class UserService {
         else {
             return "프리미엄 회원만 코인을 받을 수 있습니다.";
         }
+    }
+
+    /**
+     * Refresh 토큰 재발급 로직
+     */
+    @Transactional
+    public TokenResponseDto reissue(ReissueRequestDto request) {
+        // refresh 유효성 검사
+        if(!jwtTokenProvider.validateToken(request.refreshToken())) {
+            throw new IllegalArgumentException("유효하지 않은 토큰입니다.");
+        }
+
+        // access 토큰에서 userId 가져오기
+        Long userId = jwtTokenProvider.getUserIdFromToken(request.accessToken());
+
+        // Redis에서 userId 기반 refresh 조회
+        RefreshEntity refreshToken = refreshRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("로그아웃된 사용자입니다."));
+
+        // refresh 일치 검사
+        if(!refreshToken.getToken().equals(request.refreshToken())) {
+            throw new IllegalArgumentException("토큰 정보가 일치하지 않습니다.");
+        }
+
+        // 새로운 refresh 토큰 생성
+        TokenResponseDto newTokenDto = jwtTokenProvider.generateTokenDto(userId);
+
+        // Redis 업데이트
+        RefreshEntity newRefreshToken = new RefreshEntity(userId, newTokenDto.refresh());
+        refreshRepository.save(newRefreshToken);
+
+        return newTokenDto;
     }
 }

@@ -65,7 +65,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
             User user = findOrCreateUser(email, socialId, provider, nickname, profileImageUrl);
             
             // JWT 토큰 생성
-            String jwtToken = jwtTokenProvider.generateToken(user.getId());
+            String jwtToken = jwtTokenProvider.generateAccessToken(user.getId());
 
             // 신규 사용자 여부 확인
             boolean isNewUser = user.getOnboardingType() == null;

@@ -1,6 +1,8 @@
 package com.fivlo.fivlo_backend.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fivlo.fivlo_backend.domain.user.auth.entity.RefreshEntity;
+import com.fivlo.fivlo_backend.domain.user.auth.repository.RefreshRepository;
 import com.fivlo.fivlo_backend.domain.user.dto.LoginResponse;
 import com.fivlo.fivlo_backend.domain.user.entity.User;
 import com.nimbusds.jose.util.StandardCharset;
@@ -21,6 +23,7 @@ public class LoginSuccessHandler implements AuthenticationSuccessHandler {
 
     private final JwtTokenProvider jwtTokenProvider;
     private final ObjectMapper objectMapper;
+    private final RefreshRepository refreshRepository;
 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) throws IOException, ServletException {
@@ -29,11 +32,18 @@ public class LoginSuccessHandler implements AuthenticationSuccessHandler {
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
         User user = userDetails.getUser();
 
-        // jwt 토큰 생성
-        String token = jwtTokenProvider.generateToken(user.getId());
+        // jwt access 토큰 생성
+        String access = jwtTokenProvider.generateAccessToken(user.getId());
+
+        // jwt refresh 토큰 생성
+        String refresh = jwtTokenProvider.generateRefreshToken(user.getId());
+
+        // Redis에 refresh 토큰 저장
+        RefreshEntity redisToken = new RefreshEntity(user.getId(), refresh);
+        refreshRepository.save(redisToken);
 
         // 응답 dto 생성
-        LoginResponse dto = new LoginResponse(token, user.getId(), user.getOnboardingType(), user.getIsPremium());
+        LoginResponse dto = new LoginResponse(access, refresh, user.getId(), user.getOnboardingType(), user.getIsPremium());
 
         // HTTP 응답 설정 및 JSON 변환
         response.setStatus(HttpServletResponse.SC_OK); // 200 OK

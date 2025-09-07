@@ -2,7 +2,8 @@ package com.fivlo.fivlo_backend.domain.user.dto;
 
 import com.fivlo.fivlo_backend.domain.user.entity.User;
 
-public record LoginResponse(String token,
+public record LoginResponse(String accessToken,
+                            String refreshToken,
                             Long userId,
                             User.OnboardingType onboardingType,
                             Boolean isPremium) {

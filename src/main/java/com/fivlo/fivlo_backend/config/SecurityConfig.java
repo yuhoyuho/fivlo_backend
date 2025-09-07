@@ -69,6 +69,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/auth/social-login").permitAll()
                 .requestMatchers("/api/v1/auth/signup").permitAll()
                 .requestMatchers("/api/v1/auth/signin").permitAll()
+                .requestMatchers("/api/v1/auth/reissue").permitAll()
                 .requestMatchers("/actuator/**").permitAll()
                 
                 // 나머지 모든 요청은 인증 필요

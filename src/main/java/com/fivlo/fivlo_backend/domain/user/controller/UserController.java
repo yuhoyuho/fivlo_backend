@@ -1,6 +1,8 @@
 package com.fivlo.fivlo_backend.domain.user.controller;
 
 import com.fivlo.fivlo_backend.common.Routes;
+import com.fivlo.fivlo_backend.domain.user.auth.dto.ReissueRequestDto;
+import com.fivlo.fivlo_backend.domain.user.auth.dto.TokenResponseDto;
 import com.fivlo.fivlo_backend.domain.user.dto.*;
 import com.fivlo.fivlo_backend.domain.user.entity.User;
 import com.fivlo.fivlo_backend.domain.user.repository.UserRepository;
@@ -17,7 +19,6 @@ import org.springframework.web.bind.annotation.*;
 public class UserController {
 
     private final UserService userService;
-    private final UserRepository userRepository;
 
     /** HTTP 메서드: POST
         엔드포인트: /api/v1/auth/social-login
@@ -89,5 +90,15 @@ public class UserController {
             @AuthenticationPrincipal CustomUserDetails userDetails) {
 
         return ResponseEntity.ok(userService.checkAttendanceAndReward(userDetails.getUser().getId()));
+    }
+
+    /**
+     * Refresh 토큰 재발급 API
+     * HTTP : POST
+     * EndPoint : /api/v1/auth/reissue
+     */
+    @PostMapping(Routes.AUTH_REFRESH)
+    public ResponseEntity<TokenResponseDto> reissue(@Valid @RequestBody ReissueRequestDto dto) {
+        return ResponseEntity.ok(userService.reissue(dto));
     }
 }

@@ -1,6 +1,7 @@
 package com.fivlo.fivlo_backend.security;
 
 import com.fivlo.fivlo_backend.config.JwtConfig;
+import com.fivlo.fivlo_backend.domain.user.auth.dto.TokenResponseDto;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 import lombok.RequiredArgsConstructor;
@@ -31,8 +32,8 @@ public class JwtTokenProvider {
                 .build();
     }
 
-    /** 사용자 ID로 JWT 토큰 생성 */
-    public String generateToken(Long userId) {
+    /** 사용자 ID로 JWT Access 토큰 생성 */
+    public String generateAccessToken(Long userId) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + jwtConfig.getJwtExpiration());
 
@@ -44,10 +45,22 @@ public class JwtTokenProvider {
                 .compact();
     }
 
+    public String generateRefreshToken(Long userId) {
+        Date now = new Date();
+        Date expiryDate = new Date(now.getTime() + jwtConfig.getJwtRefreshExpiration());
+
+        return Jwts.builder()
+                .subject(String.valueOf(userId))
+                .issuedAt(now)
+                .expiration(expiryDate)
+                .signWith(getSigningKey(), Jwts.SIG.HS256)
+                .compact();
+    }
+
     /** Authentication으로 JWT 토큰 생성 */
     public String generateToken(Authentication authentication) {
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
-        return generateToken(userDetails.getUser().getId());
+        return generateAccessToken(userDetails.getUser().getId());
     }
 
     /** 토큰에서 사용자 ID 추출 */
@@ -102,5 +115,12 @@ public class JwtTokenProvider {
             logger.error("Error checking token expiration: {}", e.getMessage());
             return true;
         }
+    }
+
+    public TokenResponseDto generateTokenDto(Long userId) {
+        String access = generateAccessToken(userId);
+        String refresh = generateRefreshToken(userId);
+
+        return new TokenResponseDto(access, refresh);
     }
 }
