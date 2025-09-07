@@ -409,65 +409,6 @@ public class TimeAttackService {
     }
 
     /**
-     * AI 추천 결과를 캐시에 저장 (goalName 기반)
-     */
-    private void cacheRecommendationByGoalName(String goalName, TimeAttackAIDto.RecommendStepsResponse response, 
-                                              String languageCode, Integer totalDurationInSeconds) {
-        log.debug("Caching recommendation for goalName: {}, language: {}", goalName, languageCode);
-
-        String cacheKey = generateCacheKeyForGoalName(goalName, languageCode);
-        
-        LocalDateTime now = LocalDateTime.now();
-        LocalDateTime expiresAt = now.plusHours(CACHE_TTL_HOURS);
-
-        TimeAttackAIDto.CacheEntry entry = new TimeAttackAIDto.CacheEntry(
-                cacheKey,
-                goalName,
-                response.getRecommendedSteps(),
-                languageCode,
-                totalDurationInSeconds,
-                now,
-                expiresAt
-        );
-
-        recommendationCache.put(cacheKey, entry);
-        
-        // 만료된 캐시 정리 (간단한 구현)
-        cleanExpiredCache();
-        
-        log.info("Cached recommendation for goalName: {}, language: {}, expires at: {}", goalName, languageCode, expiresAt);
-    }
-
-    /**
-     * goalName으로 goalId 찾기 (캐시 키 통일을 위해)
-     */
-    private Long findGoalIdByGoalName(String goalName) {
-        // 미리 정의된 목적인지 확인
-        for (PredefinedTimeAttackGoals.Goal predefinedGoal : PredefinedTimeAttackGoals.getAllPredefinedGoals()) {
-            if (goalName.equals(predefinedGoal.getKoreanName()) || goalName.equals(predefinedGoal.getEnglishName())) {
-                // 미리 정의된 목적의 경우 - 모든 사용자에서 찾기 (임시 구현)
-                List<TimeAttackGoal> allGoals = timeAttackGoalRepository.findAll();
-                for (TimeAttackGoal goal : allGoals) {
-                    if (goal.getIsPredefined() && predefinedGoal.getNameKey().equals(goal.getNameKey())) {
-                        return goal.getId();
-                    }
-                }
-                return goalName.hashCode() + 1000000L; // 찾을 수 없으면 고유한 임시 ID
-            }
-        }
-        
-        // 사용자 커스텀 목적인 경우 - 모든 사용자에서 찾기 (임시 구현)
-        List<TimeAttackGoal> allGoals = timeAttackGoalRepository.findAll();
-        for (TimeAttackGoal goal : allGoals) {
-            if (!goal.getIsPredefined() && goalName.equals(goal.getCustomName())) {
-                return goal.getId();
-            }
-        }
-        
-        return goalName.hashCode() + 2000000L; // 찾을 수 없으면 고유한 임시 ID
-    }
-
-    /**
      * 사용자 유효성 검증
      */
     private User validateUser(Long userId) {
