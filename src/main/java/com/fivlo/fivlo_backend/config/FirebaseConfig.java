@@ -15,7 +15,7 @@ public class FirebaseConfig {
     @PostConstruct
     public void init() {
         try {
-            InputStream serviceAccount = getClass().getResourceAsStream("/fivlo-16333-firebase-adminsdk-fbsvc-3ff0564aef.json");
+            InputStream serviceAccount = getClass().getResourceAsStream("/secrets/fivlo-2334d-firebase-adminsdk-fbsvc-6954f4ec3e.json");
 
             if(serviceAccount == null) {
                 throw new IOException("Firebase 키 파일 찾을 수 없습니다.");

@@ -8,6 +8,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
@@ -35,7 +36,8 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     private final UserRepository userRepository;
 
     // 프론트엔드 리다이렉션 URL (환경에 따라 설정 가능)
-    private static final String FRONTEND_URL = "http://localhost:3000"; // React 앱 URL
+    @Value("${app.frontend.url:http://localhost:3000}")
+    private String frontendUrl;
     private static final String REDIRECT_PATH = "/auth/callback";
 
     @Override
@@ -57,7 +59,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
             if (email == null || socialId == null) {
                 logger.error("Required user information missing: email={}, socialId={}", email, socialId);
-                response.sendRedirect(FRONTEND_URL + "/login?error=missing_user_info");
+                response.sendRedirect(frontendUrl + "/login?error=missing_user_info");
                 return;
             }
 
@@ -71,7 +73,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
             boolean isNewUser = user.getOnboardingType() == null;
 
             // 프론트엔드로 리다이렉션 (토큰과 사용자 정보 포함)
-            String redirectUrl = UriComponentsBuilder.fromUriString(FRONTEND_URL + REDIRECT_PATH)
+            String redirectUrl = UriComponentsBuilder.fromUriString(frontendUrl + REDIRECT_PATH)
                     .queryParam("token", jwtToken)
                     .queryParam("userId", user.getId())
                     .queryParam("email", user.getEmail())
@@ -86,7 +88,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
         } catch (Exception e) {
             logger.error("Error processing OAuth2 authentication success", e);
-            response.sendRedirect(FRONTEND_URL + "/login?error=oauth2_processing_failed");
+            response.sendRedirect(frontendUrl + "/login?error=oauth2_processing_failed");
         }
     }
 
