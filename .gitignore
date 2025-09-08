@@ -10,7 +10,7 @@ build/
 
 ### macOs ###
 .DS_Store
-
+.env
 ### env ###
 /src/main/resources/env.properties
 /src/main/resources/fivlo-16333-firebase-adminsdk-fbsvc-3ff0564aef.json
