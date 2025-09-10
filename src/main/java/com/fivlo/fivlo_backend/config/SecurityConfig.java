@@ -64,6 +64,7 @@ public class SecurityConfig {
             // API 경로별 보안 설정
             .authorizeHttpRequests(authz -> authz
                 // 인증 없이 접근 가능한 경로들
+                .requestMatchers("/").permitAll()
                 .requestMatchers("/api/v1/auth/**").permitAll()
                 .requestMatchers("/oauth2/**").permitAll()
                 .requestMatchers("/api/v1/auth/social-login").permitAll()
