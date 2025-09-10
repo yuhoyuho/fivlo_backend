@@ -1,103 +1,311 @@
 {
   "tasks": [
     {
-      "id": "282e19a2-7afa-4e27-9b30-896862effae7",
-      "name": "FocusAnalysisService에 AI 월간 분석 연동",
-      "description": "FocusAnalysisService.getMonthlyAIAnalysis() 메서드에서 현재 로컬 분석만 수행하고 있는 로직을 GeminiService.generateMonthlyAnalysisSuggestions()를 호출하여 실제 AI 분석을 수행하도록 수정합니다.",
-      "notes": "GeminiService는 이미 FocusAnalysisService에 주입되어 있음. 기존 로깅 패턴과 예외 처리 방식 유지. AI 응답 파싱 실패 시 안전한 fallback 처리 필요.",
-      "status": "completed",
+      "id": "3d7a9e04-5cc6-4a35-ad60-91c68d75377f",
+      "name": "Subscription 도메인 기본 구조 설정",
+      "description": "구독 시스템을 위한 기본 패키지 구조와 핵심 엔티티들을 생성합니다. 기존 FIVLO 아키텍처 패턴에 맞춰 domain/user/subscription 서브패키지를 구성하고, Platform과 SubscriptionStatus enum, 그리고 Subscription 엔티티를 생성합니다.",
+      "notes": "기존 User 엔티티와 동일한 스타일로 작성. @CreatedDate, @LastModifiedDate 포함. JPA 관계 설정 시 FetchType.LAZY 사용",
+      "status": "pending",
       "dependencies": [],
-      "createdAt": "2025-09-07T06:01:18.268Z",
-      "updatedAt": "2025-09-07T06:03:38.646Z",
+      "createdAt": "2025-09-09T09:38:59.824Z",
+      "updatedAt": "2025-09-09T09:38:59.824Z",
       "relatedFiles": [
         {
-          "path": "src/main/java/com/fivlo/fivlo_backend/domain/pomodoro/service/FocusAnalysisService.java",
-          "type": "TO_MODIFY",
-          "description": "getMonthlyAIAnalysis 메서드 수정",
-          "lineStart": 339,
-          "lineEnd": 375
+          "path": "src/main/java/com/fivlo/fivlo_backend/domain/user/entity/User.java",
+          "type": "REFERENCE",
+          "description": "엔티티 작성 패턴 참조"
         },
         {
-          "path": "src/main/java/com/fivlo/fivlo_backend/common/ai/GeminiService.java",
-          "type": "REFERENCE",
-          "description": "완벽히 구현된 generateMonthlyAnalysisSuggestions 메서드",
-          "lineStart": 200,
-          "lineEnd": 230
-        }
-      ],
-      "implementationGuide": "1. 기존 월간 세션 데이터 조회 로직 유지\\n2. 세션 데이터를 JSON 문자열로 변환하여 GeminiService에 전달\\n3. geminiService.generateMonthlyAnalysisSuggestions() 호출\\n4. AI 응답을 파싱하여 AIAnalysisResponse 구조에 맞게 변환\\n5. 기존 로컬 분석 결과 제거하고 AI 분석 결과로 대체\\n6. 에러 처리 및 로깅 추가 (AI 호출 실패 시 빈 응답 반환)",
-      "verificationCriteria": "1. GeminiService.generateMonthlyAnalysisSuggestions() 호출이 정상 동작하는지 확인\\n2. AI 응답이 올바르게 파싱되어 AIAnalysisResponse로 변환되는지 확인\\n3. 세션 데이터가 부족한 경우 빈 응답 반환하는지 확인\\n4. AI 호출 실패 시 적절한 에러 처리가 되는지 확인\\n5. 기존 API 33 엔드포인트가 정상 동작하는지 확인\\n6. 컴파일 오류가 없는지 확인",
-      "analysisResult": "AI 기능 통합 구현. GeminiService.java는 완벽히 수정 완료된 상태에서 FocusAnalysisService.getMonthlyAIAnalysis() 메서드만 수정하면 완전한 AI 기능 구현 완료. TaskController와 TaskService는 이미 완벽히 구현되어 있음.",
-      "summary": "FocusAnalysisService.getMonthlyAIAnalysis()에 GeminiService 연동 성공적으로 구현. 세션 데이터를 JSON으로 변환하여 AI에 전달, 응답 파싱, 에러 처리 포함. 기존 로컬 분석을 제거하고 실제 AI 분석으로 대체하여 API 33 기능 완성. 안전한 fallback 처리로 안정성 확보.",
-      "completedAt": "2025-09-07T06:03:38.645Z"
-    },
-    {
-      "id": "6ade2cf3-5489-4b18-a9d4-20cbcc37b1fd",
-      "name": "TaskController에 언어 지원 추가",
-      "description": "TaskController의 AI 목표 분석 엔드포인트(API 16)에서 Accept-Language 헤더를 처리하여 다국어 지원을 추가합니다. 현재는 기본 한국어로만 동작하므로 언어별 지원을 구현합니다.",
-      "notes": "TaskService.analyzeAndRecommendTasks()는 이미 언어 파라미터를 지원함. 기존 오버로드된 메서드(언어 파라미터 없는 버전)도 유지하여 하위 호환성 보장.",
-      "status": "completed",
-      "dependencies": [
-        {
-          "taskId": "282e19a2-7afa-4e27-9b30-896862effae7"
-        }
-      ],
-      "createdAt": "2025-09-07T06:01:18.268Z",
-      "updatedAt": "2025-09-07T06:09:07.003Z",
-      "relatedFiles": [
-        {
-          "path": "src/main/java/com/fivlo/fivlo_backend/domain/task/controller/TaskController.java",
-          "type": "TO_MODIFY",
-          "description": "AI 목표 분석 엔드포인트에 언어 지원 추가",
-          "lineStart": 151,
-          "lineEnd": 156
+          "path": "src/main/java/com/fivlo/fivlo_backend/domain/user/subscription/entity/Platform.java",
+          "type": "CREATE",
+          "description": "플랫폼 enum 생성"
         },
         {
-          "path": "src/main/java/com/fivlo/fivlo_backend/domain/task/service/TaskService.java",
-          "type": "REFERENCE",
-          "description": "이미 언어별 지원이 완료된 analyzeAndRecommendTasks 메서드",
-          "lineStart": 256,
-          "lineEnd": 280
+          "path": "src/main/java/com/fivlo/fivlo_backend/domain/user/subscription/entity/SubscriptionStatus.java",
+          "type": "CREATE",
+          "description": "구독 상태 enum 생성"
+        },
+        {
+          "path": "src/main/java/com/fivlo/fivlo_backend/domain/user/subscription/entity/Subscription.java",
+          "type": "CREATE",
+          "description": "구독 엔티티 생성"
         }
       ],
-      "implementationGuide": "1. analyzeGoalAndGetRecommendations 메서드에 @RequestHeader Accept-Language 파라미터 추가\\n2. Accept-Language 헤더에서 언어 코드 추출 (en, ko 지원)\\n3. TaskService.analyzeAndRecommendTasks(request, languageCode) 호출\\n4. 기본값은 한국어(ko)로 설정\\n5. 로깅에 언어 정보 추가\\n6. API 문서 주석 업데이트",
-      "verificationCriteria": "1. Accept-Language: en 헤더로 요청 시 영어 응답이 오는지 확인\\n2. Accept-Language: ko 헤더로 요청 시 한국어 응답이 오는지 확인\\n3. Accept-Language 헤더가 없는 경우 기본 한국어로 동작하는지 확인\\n4. 지원하지 않는 언어 요청 시 기본 언어로 동작하는지 확인\\n5. 기존 API 16 동작이 변경되지 않았는지 확인\\n6. 컴파일 오류가 없는지 확인",
-      "analysisResult": "AI 기능 통합 구현. GeminiService.java는 완벽히 수정 완료된 상태에서 FocusAnalysisService.getMonthlyAIAnalysis() 메서드만 수정하면 완전한 AI 기능 구현 완료. TaskController와 TaskService는 이미 완벽히 구현되어 있음.",
-      "summary": "TaskController의 AI 목표 분석 엔드포인트에 Accept-Language 헤더 지원 성공적으로 추가. en/ko 언어별 분기 처리, 기본값 한국어 설정, extractLanguageCode 헬퍼 메서드 구현, 상세 로깅 추가로 완전한 다국어 지원 구현. 하위 호환성 완전 보장.",
-      "completedAt": "2025-09-07T06:09:07.001Z"
+      "implementationGuide": "1. 패키지 구조 생성: domain/user/subscription/{controller,service,repository,dto,entity,webhook}\\n2. Platform enum 생성: GOOGLE, APPLE 값\\n3. SubscriptionStatus enum 생성: ACTIVE, EXPIRED, CANCELLED, GRACE_PERIOD, ON_HOLD\\n4. Subscription 엔티티 생성:\\n   - @Entity, @Table(name = \"subscriptions\")\\n   - 필드: id(Long), user(User-ManyToOne), productId(String), startDate(LocalDate), endDate(LocalDate), status(SubscriptionStatus), platform(Platform), purchaseToken(String)\\n   - JPA 애노테이션, Lombok 적용\\n   - 기존 User 엔티티 패턴 따라 AuditingEntityListener 적용",
+      "verificationCriteria": "Subscription 엔티티가 기존 User 엔티티와 동일한 패턴으로 작성되었는지, JPA 관계 매핑이 올바른지, enum 타입들이 적절히 정의되었는지 확인",
+      "analysisResult": "FIVLO 인앱결제 구독 시스템 구현: 기존 아키텍처 패턴을 완전히 준수하여 domain/user/subscription 서브패키지 구조로 구성. 구독형 멤버십(월/년) 관리, Google/Apple 서버 사이드 검증, 멤버십 전용 코인 시스템 연동. 기존 User, CoinTransaction 엔티티 재사용하고 UserService, Routes 클래스 확장."
     },
     {
-      "id": "7f627def-efbc-4fa2-84f9-72aa7cedcca4",
-      "name": "AI 기능 통합 테스트 및 검증",
-      "description": "구현된 AI 기능들이 올바르게 동작하는지 포괄적으로 테스트하고 검증합니다. API 16, 17, 33이 완전히 작동하는지 확인합니다.",
-      "notes": "실제 API 테스트는 포스트맨이나 curl로 수행. 주요 시나리오별 예상 동작 확인에 집중.",
+      "id": "030d4387-b9b3-4cdf-a865-b4d655976e2e",
+      "name": "User 엔티티 구독 관계 설정 및 Routes 확장",
+      "description": "기존 User 엔티티에 Subscription과의 관계를 추가하고, Routes 클래스에 구독 관련 API 경로 상수들을 추가합니다. 기존 코드 패턴을 유지하면서 확장합니다.",
+      "notes": "User 엔티티 수정 시 기존 필드들과의 일관성 유지. mappedBy, cascade 설정 적절히 적용",
       "status": "pending",
       "dependencies": [
         {
-          "taskId": "6ade2cf3-5489-4b18-a9d4-20cbcc37b1fd"
+          "taskId": "3d7a9e04-5cc6-4a35-ad60-91c68d75377f"
         }
       ],
-      "createdAt": "2025-09-07T06:01:18.268Z",
-      "updatedAt": "2025-09-07T06:01:18.268Z",
+      "createdAt": "2025-09-09T09:38:59.824Z",
+      "updatedAt": "2025-09-09T09:38:59.824Z",
       "relatedFiles": [
         {
-          "path": "src/main/java/com/fivlo/fivlo_backend/domain/pomodoro/controller/FocusAnalysisController.java",
-          "type": "REFERENCE",
-          "description": "API 33 엔드포인트 검증",
-          "lineStart": 99,
-          "lineEnd": 115
+          "path": "src/main/java/com/fivlo/fivlo_backend/domain/user/entity/User.java",
+          "type": "TO_MODIFY",
+          "description": "Subscription 관계 추가",
+          "lineStart": 100,
+          "lineEnd": 120
         },
         {
-          "path": "src/main/java/com/fivlo/fivlo_backend/domain/task/controller/TaskController.java",
-          "type": "REFERENCE",
-          "description": "API 16, 17 엔드포인트 검증",
-          "lineStart": 151,
-          "lineEnd": 168
+          "path": "src/main/java/com/fivlo/fivlo_backend/common/Routes.java",
+          "type": "TO_MODIFY",
+          "description": "구독 관련 URL 상수 추가",
+          "lineStart": 20,
+          "lineEnd": 30
         }
       ],
-      "implementationGuide": "1. 컴파일 테스트: gradlew compileJava 실행\\n2. API 33 테스트: 월간 AI 분석 엔드포인트 동작 확인\\n3. API 16 테스트: AI 목표 분석 (한국어/영어) 동작 확인\\n4. API 17 테스트: AI 추천 Task 추가 기능 확인\\n5. 엣지 케이스 테스트:\\n   - 데이터 부족 시나리오\\n   - AI 응답 파싱 실패 시나리오\\n   - 잘못된 언어 코드 요청\\n6. 로그 출력 확인 및 성능 검증",
-      "verificationCriteria": "1. 모든 AI 관련 엔드포인트가 정상 응답하는지 확인\\n2. 한국어/영어 언어별 응답이 올바른지 확인\\n3. AI 응답 구조가 API 설계서와 일치하는지 확인\\n4. 에러 상황에서 적절한 에러 응답이 오는지 확인\\n5. 로깅이 적절히 기록되는지 확인\\n6. 전체적인 AI 기능 플로우가 완성되었는지 확인",
-      "analysisResult": "AI 기능 통합 구현. GeminiService.java는 완벽히 수정 완료된 상태에서 FocusAnalysisService.getMonthlyAIAnalysis() 메서드만 수정하면 완전한 AI 기능 구현 완료. TaskController와 TaskService는 이미 완벽히 구현되어 있음."
+      "implementationGuide": "1. User 엔티티 수정:\\n   - @OneToMany 관계 추가: List<Subscription> subscriptions\\n   - hasActiveSubscription() 메서드 추가\\n   - 구독 상태 체크 비즈니스 로직 메서드 추가\\n2. Routes 클래스 확장:\\n   - SUBSCRIPTIONS_BASE = USERS_BASE + \"/subscriptions\"\\n   - SUBSCRIPTIONS_VERIFY = SUBSCRIPTIONS_BASE + \"/verify\"\\n   - SUBSCRIPTIONS_STATUS = SUBSCRIPTIONS_BASE + \"/status\"\\n   - WEBHOOKS_BASE = API_BASE + \"/webhooks\"\\n   - WEBHOOKS_GOOGLE = WEBHOOKS_BASE + \"/google\"\\n   - WEBHOOKS_APPLE = WEBHOOKS_BASE + \"/apple\"",
+      "verificationCriteria": "User와 Subscription 간 양방향 관계가 올바르게 설정되었는지, Routes에 일관된 네이밍으로 URL 상수가 추가되었는지 확인",
+      "analysisResult": "FIVLO 인앱결제 구독 시스템 구현: 기존 아키텍처 패턴을 완전히 준수하여 domain/user/subscription 서브패키지 구조로 구성. 구독형 멤버십(월/년) 관리, Google/Apple 서버 사이드 검증, 멤버십 전용 코인 시스템 연동. 기존 User, CoinTransaction 엔티티 재사용하고 UserService, Routes 클래스 확장."
+    },
+    {
+      "id": "bbd3eb10-6928-40aa-97a1-80f50a71874f",
+      "name": "Subscription DTO 및 Repository 구현",
+      "description": "구독 시스템에 필요한 Request/Response DTO들과 SubscriptionRepository를 구현합니다. 기존 DTO 패턴(Record 타입)을 따르고 JPA Repository 패턴을 적용합니다.",
+      "notes": "기존 UserRepository 패턴을 참고하여 네이밍 규칙 준수. @Query 애노테이션 사용 시 JPQL 문법 적용",
+      "status": "pending",
+      "dependencies": [
+        {
+          "taskId": "3d7a9e04-5cc6-4a35-ad60-91c68d75377f"
+        }
+      ],
+      "createdAt": "2025-09-09T09:38:59.824Z",
+      "updatedAt": "2025-09-09T09:38:59.824Z",
+      "relatedFiles": [
+        {
+          "path": "src/main/java/com/fivlo/fivlo_backend/domain/user/dto/SocialLoginRequest.java",
+          "type": "REFERENCE",
+          "description": "Record DTO 패턴 참조"
+        },
+        {
+          "path": "src/main/java/com/fivlo/fivlo_backend/domain/user/repository/UserRepository.java",
+          "type": "REFERENCE",
+          "description": "Repository 패턴 참조"
+        },
+        {
+          "path": "src/main/java/com/fivlo/fivlo_backend/domain/user/subscription/dto/SubscriptionVerifyRequest.java",
+          "type": "CREATE",
+          "description": "결제 검증 요청 DTO"
+        },
+        {
+          "path": "src/main/java/com/fivlo/fivlo_backend/domain/user/subscription/repository/SubscriptionRepository.java",
+          "type": "CREATE",
+          "description": "구독 리포지토리"
+        }
+      ],
+      "implementationGuide": "1. DTO 생성 (Record 타입):\\n   - SubscriptionVerifyRequest(platform, productId, purchaseToken)\\n   - SubscriptionVerifyResponse(subscriptionId, status, endDate)\\n   - SubscriptionStatusResponse(isActive, productId, endDate, status)\\n   - GoogleWebhookRequest, AppleWebhookRequest\\n2. SubscriptionRepository 생성:\\n   - JpaRepository<Subscription, Long> 상속\\n   - findByUserAndStatus(User user, SubscriptionStatus status)\\n   - findByPurchaseToken(String token)\\n   - findActiveSubscriptionsByUser(User user) 커스텀 쿼리",
+      "verificationCriteria": "Record DTO가 기존 패턴과 일치하는지, Repository 메서드들이 명명 규칙을 따르는지, 커스텀 쿼리가 올바르게 작성되었는지 확인",
+      "analysisResult": "FIVLO 인앱결제 구독 시스템 구현: 기존 아키텍처 패턴을 완전히 준수하여 domain/user/subscription 서브패키지 구조로 구성. 구독형 멤버십(월/년) 관리, Google/Apple 서버 사이드 검증, 멤버십 전용 코인 시스템 연동. 기존 User, CoinTransaction 엔티티 재사용하고 UserService, Routes 클래스 확장."
+    },
+    {
+      "id": "d46fa3db-3db1-48c1-8eda-33182d03ac5c",
+      "name": "Google Play 결제 검증 서비스 구현",
+      "description": "Google Play Developer API를 사용하여 구매 토큰을 검증하는 서비스를 구현합니다. 구매 검증, 토큰 중복 체크, 구독 상태 관리 로직을 포함합니다.",
+      "notes": "환경변수로 Google API 키 관리. 외부 API 호출 시 타임아웃 설정. 에러 케이스별 적절한 예외 처리",
+      "status": "pending",
+      "dependencies": [
+        {
+          "taskId": "3d7a9e04-5cc6-4a35-ad60-91c68d75377f"
+        }
+      ],
+      "createdAt": "2025-09-09T09:38:59.824Z",
+      "updatedAt": "2025-09-09T09:38:59.824Z",
+      "relatedFiles": [
+        {
+          "path": "src/main/java/com/fivlo/fivlo_backend/domain/user/subscription/service/GooglePlayVerifier.java",
+          "type": "CREATE",
+          "description": "Google Play 검증 서비스"
+        },
+        {
+          "path": "src/main/resources/application.properties",
+          "type": "REFERENCE",
+          "description": "환경변수 설정 참조"
+        }
+      ],
+      "implementationGuide": "1. GooglePlayVerifier 서비스 생성:\\n   - Google Play Developer API 클라이언트 설정\\n   - verifyPurchase(String packageName, String productId, String purchaseToken) 메서드\\n   - API 응답 파싱 및 검증 로직\\n2. 검증 로직:\\n   - 구매 토큰 유효성 확인\\n   - 구독 상태 (ACTIVE, EXPIRED 등) 매핑\\n   - 만료일 계산 로직\\n3. 보안 처리:\\n   - 토큰 중복 사용 방지\\n   - API 인증 및 에러 핸들링\\n   - 로깅 추가 (구매 검증 성공/실패)",
+      "verificationCriteria": "Google Play API 호출이 정상 작동하는지, 구매 토큰 검증 로직이 올바른지, 에러 처리가 적절한지, 로깅이 충분한지 확인",
+      "analysisResult": "FIVLO 인앱결제 구독 시스템 구현: 기존 아키텍처 패턴을 완전히 준수하여 domain/user/subscription 서브패키지 구조로 구성. 구독형 멤버십(월/년) 관리, Google/Apple 서버 사이드 검증, 멤버십 전용 코인 시스템 연동. 기존 User, CoinTransaction 엔티티 재사용하고 UserService, Routes 클래스 확장."
+    },
+    {
+      "id": "9a0800a9-1cfe-4bfa-8d7a-4d93112f83b9",
+      "name": "Apple App Store 결제 검증 서비스 구현",
+      "description": "Apple App Store Server API 또는 verifyReceipt를 사용하여 iOS 구매를 검증하는 서비스를 구현합니다. StoreKit 2 JWS 검증과 기존 Receipt 검증 방식을 모두 지원합니다.",
+      "notes": "StoreKit 2 방식을 우선 지원하되 기존 Receipt 방식도 호환성 위해 유지. Apple 환경별(Sandbox/Production) 엔드포인트 구분",
+      "status": "pending",
+      "dependencies": [
+        {
+          "taskId": "3d7a9e04-5cc6-4a35-ad60-91c68d75377f"
+        }
+      ],
+      "createdAt": "2025-09-09T09:38:59.825Z",
+      "updatedAt": "2025-09-09T09:38:59.825Z",
+      "relatedFiles": [
+        {
+          "path": "src/main/java/com/fivlo/fivlo_backend/domain/user/subscription/service/AppleStoreVerifier.java",
+          "type": "CREATE",
+          "description": "Apple Store 검증 서비스"
+        }
+      ],
+      "implementationGuide": "1. AppleStoreVerifier 서비스 생성:\\n   - StoreKit 2 JWS 토큰 검증 로직 (우선)\\n   - verifyReceipt API 호출 로직 (fallback)\\n   - JWS 서명 검증 및 페이로드 파싱\\n2. 검증 로직:\\n   - Transaction 객체에서 구독 정보 추출\\n   - 구독 상태 및 만료일 계산\\n   - Sandbox/Production 환경 구분\\n3. 보안 처리:\\n   - 앱별 shared secret 관리\\n   - JWS 서명 검증\\n   - Receipt 중복 사용 방지",
+      "verificationCriteria": "Apple API 호출이 정상 작동하는지, JWS 검증 로직이 올바른지, Sandbox/Production 환경 구분이 적절한지 확인",
+      "analysisResult": "FIVLO 인앱결제 구독 시스템 구현: 기존 아키텍처 패턴을 완전히 준수하여 domain/user/subscription 서브패키지 구조로 구성. 구독형 멤버십(월/년) 관리, Google/Apple 서버 사이드 검증, 멤버십 전용 코인 시스템 연동. 기존 User, CoinTransaction 엔티티 재사용하고 UserService, Routes 클래스 확장."
+    },
+    {
+      "id": "79966868-34cf-42a6-b0f9-6ca9eafd00b7",
+      "name": "핵심 SubscriptionService 구현",
+      "description": "구독 검증, 생성, 상태 관리를 담당하는 핵심 SubscriptionService를 구현합니다. Google/Apple 검증 서비스를 통합하고 User.isPremium과 연동합니다.",
+      "notes": "기존 UserService 패턴 참조. 트랜잭션 처리 주의. 외부 API 호출 시 예외 처리 철저히",
+      "status": "pending",
+      "dependencies": [
+        {
+          "taskId": "bbd3eb10-6928-40aa-97a1-80f50a71874f"
+        },
+        {
+          "taskId": "d46fa3db-3db1-48c1-8eda-33182d03ac5c"
+        },
+        {
+          "taskId": "9a0800a9-1cfe-4bfa-8d7a-4d93112f83b9"
+        }
+      ],
+      "createdAt": "2025-09-09T09:38:59.825Z",
+      "updatedAt": "2025-09-09T09:38:59.825Z",
+      "relatedFiles": [
+        {
+          "path": "src/main/java/com/fivlo/fivlo_backend/domain/user/service/UserService.java",
+          "type": "REFERENCE",
+          "description": "Service 패턴 및 트랜잭션 처리 참조"
+        },
+        {
+          "path": "src/main/java/com/fivlo/fivlo_backend/domain/user/subscription/service/SubscriptionService.java",
+          "type": "CREATE",
+          "description": "핵심 구독 서비스"
+        }
+      ],
+      "implementationGuide": "1. SubscriptionService 클래스 생성:\\n   - @Service, @Transactional 애노테이션\\n   - GooglePlayVerifier, AppleStoreVerifier 의존성 주입\\n   - UserService와 연동\\n2. 핵심 메서드들:\\n   - verifyAndCreateSubscription(SubscriptionVerifyRequest) : 결제 검증 및 구독 생성\\n   - getSubscriptionStatus(User user) : 현재 구독 상태 조회\\n   - updateUserPremiumStatus(User user) : User.isPremium 업데이트\\n   - cancelSubscription(Long subscriptionId) : 구독 취소\\n3. 비즈니스 로직:\\n   - 플랫폼별 검증 서비스 분기 처리\\n   - 구독 생성 시 User.isPremium = true 설정\\n   - 만료된 구독 정리 로직",
+      "verificationCriteria": "플랫폼별 검증이 올바르게 분기되는지, 구독 생성 시 User.isPremium이 정확히 업데이트되는지, 트랜잭션 처리가 적절한지 확인",
+      "analysisResult": "FIVLO 인앱결제 구독 시스템 구현: 기존 아키텍처 패턴을 완전히 준수하여 domain/user/subscription 서브패키지 구조로 구성. 구독형 멤버십(월/년) 관리, Google/Apple 서버 사이드 검증, 멤버십 전용 코인 시스템 연동. 기존 User, CoinTransaction 엔티티 재사용하고 UserService, Routes 클래스 확장."
+    },
+    {
+      "id": "ecb185ad-7f3a-45f5-9f69-1a5d1a9e1ae2",
+      "name": "구독 API Controller 구현",
+      "description": "구독 검증, 상태 조회 API를 제공하는 SubscriptionController를 구현합니다. 기존 UserController 패턴을 따라 RESTful API를 구성합니다.",
+      "notes": "기존 UserController와 동일한 패턴 적용. 에러 처리 일관성 유지. JWT 인증 기반 사용자 식별",
+      "status": "pending",
+      "dependencies": [
+        {
+          "taskId": "030d4387-b9b3-4cdf-a865-b4d655976e2e"
+        },
+        {
+          "taskId": "79966868-34cf-42a6-b0f9-6ca9eafd00b7"
+        }
+      ],
+      "createdAt": "2025-09-09T09:38:59.825Z",
+      "updatedAt": "2025-09-09T09:38:59.825Z",
+      "relatedFiles": [
+        {
+          "path": "src/main/java/com/fivlo/fivlo_backend/domain/user/controller/UserController.java",
+          "type": "REFERENCE",
+          "description": "Controller 패턴 및 인증 처리 참조"
+        },
+        {
+          "path": "src/main/java/com/fivlo/fivlo_backend/domain/user/subscription/controller/SubscriptionController.java",
+          "type": "CREATE",
+          "description": "구독 API 컨트롤러"
+        }
+      ],
+      "implementationGuide": "1. SubscriptionController 클래스 생성:\\n   - @RestController, @RequiredArgsConstructor\\n   - Routes 상수 사용하여 매핑\\n   - @AuthenticationPrincipal CustomUserDetails 활용\\n2. API 엔드포인트들:\\n   - POST /api/v1/users/subscriptions/verify : 구매 검증\\n   - GET /api/v1/users/subscriptions/status : 구독 상태 조회\\n   - POST /api/v1/users/subscriptions/cancel/{id} : 구독 취소\\n3. 응답 처리:\\n   - ResponseEntity 사용\\n   - HTTP 상태 코드 적절히 설정\\n   - @Valid 유효성 검사 적용",
+      "verificationCriteria": "API 엔드포인트가 Routes 상수를 올바르게 사용하는지, 인증 처리가 적절한지, 응답 형식이 기존 패턴과 일치하는지 확인",
+      "analysisResult": "FIVLO 인앱결제 구독 시스템 구현: 기존 아키텍처 패턴을 완전히 준수하여 domain/user/subscription 서브패키지 구조로 구성. 구독형 멤버십(월/년) 관리, Google/Apple 서버 사이드 검증, 멤버십 전용 코인 시스템 연동. 기존 User, CoinTransaction 엔티티 재사용하고 UserService, Routes 클래스 확장."
+    },
+    {
+      "id": "71d91c7d-f355-44fc-862e-4609bc98015f",
+      "name": "Google Play 웹훅 처리 구현",
+      "description": "Google Play Real-time Developer Notifications를 처리하는 웹훅 컨트롤러를 구현합니다. Cloud Pub/Sub 메시지를 받아 구독 상태를 실시간으로 업데이트합니다.",
+      "notes": "Google Pub/Sub 메시지 형식 정확히 파싱. 멱등성 보장 중요. 에러 발생 시에도 200 응답으로 재전송 방지",
+      "status": "pending",
+      "dependencies": [
+        {
+          "taskId": "79966868-34cf-42a6-b0f9-6ca9eafd00b7"
+        }
+      ],
+      "createdAt": "2025-09-09T09:38:59.825Z",
+      "updatedAt": "2025-09-09T09:38:59.825Z",
+      "relatedFiles": [
+        {
+          "path": "src/main/java/com/fivlo/fivlo_backend/domain/user/subscription/webhook/GooglePlayWebhookController.java",
+          "type": "CREATE",
+          "description": "Google Play 웹훅 컨트롤러"
+        }
+      ],
+      "implementationGuide": "1. GooglePlayWebhookController 생성:\\n   - @RestController, POST 매핑\\n   - Base64 디코딩 및 JSON 파싱\\n   - notification type별 분기 처리\\n2. 처리 로직:\\n   - SUBSCRIPTION_PURCHASED : 새 구독 확인\\n   - SUBSCRIPTION_CANCELED : 구독 취소 처리\\n   - SUBSCRIPTION_EXPIRED : 구독 만료 처리\\n   - SUBSCRIPTION_RENEWED : 구독 갱신\\n3. 보안 및 안정성:\\n   - 중복 알림 처리 방지\\n   - 비동기 처리(@Async)\\n   - 실패 시 로깅 및 알림",
+      "verificationCriteria": "Pub/Sub 메시지 파싱이 올바른지, notification type별 처리가 적절한지, 중복 처리 방지가 구현되었는지 확인",
+      "analysisResult": "FIVLO 인앱결제 구독 시스템 구현: 기존 아키텍처 패턴을 완전히 준수하여 domain/user/subscription 서브패키지 구조로 구성. 구독형 멤버십(월/년) 관리, Google/Apple 서버 사이드 검증, 멤버십 전용 코인 시스템 연동. 기존 User, CoinTransaction 엔티티 재사용하고 UserService, Routes 클래스 확장."
+    },
+    {
+      "id": "d1c9010a-3bc9-4c0c-9afd-fb12402aa1bc",
+      "name": "Apple App Store 웹훅 처리 구현",
+      "description": "Apple App Store Server Notifications를 처리하는 웹훅 컨트롤러를 구현합니다. Apple 서버 알림을 받아 구독 상태를 실시간으로 업데이트합니다.",
+      "notes": "Apple JWS 검증 라이브러리 활용. notification payload 구조 정확히 파싱. 환경별 처리 분기 필수",
+      "status": "pending",
+      "dependencies": [
+        {
+          "taskId": "79966868-34cf-42a6-b0f9-6ca9eafd00b7"
+        }
+      ],
+      "createdAt": "2025-09-09T09:38:59.825Z",
+      "updatedAt": "2025-09-09T09:38:59.825Z",
+      "relatedFiles": [
+        {
+          "path": "src/main/java/com/fivlo/fivlo_backend/domain/user/subscription/webhook/AppleStoreWebhookController.java",
+          "type": "CREATE",
+          "description": "Apple Store 웹훅 컨트롤러"
+        }
+      ],
+      "implementationGuide": "1. AppleStoreWebhookController 생성:\\n   - @RestController, POST 매핑\\n   - JWS 서명 검증\\n   - notification type별 처리\\n2. 알림 타입 처리:\\n   - SUBSCRIBED : 새 구독\\n   - DID_CHANGE_RENEWAL_STATUS : 갱신 상태 변경\\n   - EXPIRED : 구독 만료\\n   - REFUND : 환불 처리\\n3. 검증 및 보안:\\n   - JWS 서명 검증 필수\\n   - 중복 알림 방지\\n   - 비동기 처리\\n   - Apple 환경(Sandbox/Production) 구분",
+      "verificationCriteria": "JWS 서명 검증이 정상 작동하는지, notification type별 처리가 적절한지, 환경 구분이 올바른지 확인",
+      "analysisResult": "FIVLO 인앱결제 구독 시스템 구현: 기존 아키텍처 패턴을 완전히 준수하여 domain/user/subscription 서브패키지 구조로 구성. 구독형 멤버십(월/년) 관리, Google/Apple 서버 사이드 검증, 멤버십 전용 코인 시스템 연동. 기존 User, CoinTransaction 엔티티 재사용하고 UserService, Routes 클래스 확장."
+    },
+    {
+      "id": "73d2e6d6-b6bd-4794-a648-0d6bda1d035c",
+      "name": "기존 UserService 멤버십 연동 및 테스트",
+      "description": "기존 UserService와 코인 시스템을 구독 시스템과 연동하고, 통합 테스트를 수행합니다. isPremium 상태와 구독 상태가 일치하도록 보장합니다.",
+      "notes": "기존 코드 수정 시 하위 호환성 유지. 스케줄러 설정 시 서버 부하 고려. 테스트는 실제 API 호출 없이 Mock 활용",
+      "status": "pending",
+      "dependencies": [
+        {
+          "taskId": "79966868-34cf-42a6-b0f9-6ca9eafd00b7"
+        },
+        {
+          "taskId": "ecb185ad-7f3a-45f5-9f69-1a5d1a9e1ae2"
+        }
+      ],
+      "createdAt": "2025-09-09T09:38:59.825Z",
+      "updatedAt": "2025-09-09T09:38:59.825Z",
+      "relatedFiles": [
+        {
+          "path": "src/main/java/com/fivlo/fivlo_backend/domain/user/service/UserService.java",
+          "type": "TO_MODIFY",
+          "description": "구독 연동 메서드 추가"
+        },
+        {
+          "path": "src/test/java/com/fivlo/fivlo_backend/domain/user/subscription/service/SubscriptionServiceTest.java",
+          "type": "CREATE",
+          "description": "구독 서비스 통합 테스트"
+        }
+      ],
+      "implementationGuide": "1. UserService 메서드 추가:\\n   - updatePremiumStatus(User user) : 구독 기반 프리미엄 상태 업데이트\\n   - checkSubscriptionAndUpdatePremium(User user) : 정기적 상태 동기화\\n   - 기존 코인 관련 메서드에 isPremium 체크 로직 강화\\n2. 스케줄러 추가:\\n   - @Scheduled로 만료된 구독 정리 작업\\n   - 매일 자정에 구독 상태와 isPremium 동기화\\n3. 통합 테스트:\\n   - 구독 생성 → isPremium true 확인\\n   - 구독 만료 → isPremium false 확인\\n   - 코인 시스템 연동 테스트",
+      "verificationCriteria": "기존 기능들이 정상 동작하는지, 구독 상태와 isPremium이 정확히 동기화되는지, 코인 시스템 연동이 올바른지, 테스트 커버리지가 충분한지 확인",
+      "analysisResult": "FIVLO 인앱결제 구독 시스템 구현: 기존 아키텍처 패턴을 완전히 준수하여 domain/user/subscription 서브패키지 구조로 구성. 구독형 멤버십(월/년) 관리, Google/Apple 서버 사이드 검증, 멤버십 전용 코인 시스템 연동. 기존 User, CoinTransaction 엔티티 재사용하고 UserService, Routes 클래스 확장."
     }
   ]
 }
