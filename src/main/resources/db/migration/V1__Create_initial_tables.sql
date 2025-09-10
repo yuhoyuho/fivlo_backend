@@ -15,11 +15,6 @@ CREATE TABLE users (
     is_premium BOOLEAN NOT NULL DEFAULT false,
     total_coins INTEGER NOT NULL DEFAULT 0,
     last_pomodoro_coin_date DATE,
-    last_reminder_coin_date DATE,
-    last_attendance_coin_date DATE,
-    last_login DATE,
-    last_task_coin_date DATE,
-    fcm_token VARCHAR(255),
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
