@@ -15,6 +15,9 @@ WORKDIR /app
 # git pull로 받은 최신 소스코드 전체를 복사
 COPY . .
 
+# gradlew 파일에 실행 권한 부여
+RUN chmod +x ./gradlew
+
 # Gradle을 사용해 프로젝트를 빌드
 # 이 명령어가 build/libs/ 안에 최신 .jar 파일을 생성
 RUN ./gradlew build -x test
