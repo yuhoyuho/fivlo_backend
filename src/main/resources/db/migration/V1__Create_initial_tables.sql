@@ -1,6 +1,7 @@
 -- V1__Create_initial_tables.sql
 -- FIVLO 앱 초기 테이블 생성
 -- 작성일: 2025-08-12
+-- 수정일: 2025-09-10
 
 -- ==================== 사용자 테이블 ====================
 CREATE TABLE users (
@@ -15,7 +16,7 @@ CREATE TABLE users (
     is_premium BOOLEAN NOT NULL DEFAULT false,
     total_coins INTEGER NOT NULL DEFAULT 0,
     last_pomodoro_coin_date DATE,
-    lst_reminder_coin_date DATE,
+    last_reminder_coin_date DATE,
     last_attendance_coin_date DATE,
     last_login DATE,
     last_task_coin_date DATE,
@@ -170,6 +171,8 @@ CREATE TABLE time_attack_goals (
 -- 타임어택 목표 테이블 인덱스
 CREATE INDEX idx_time_attack_goals_user_id ON time_attack_goals(user_id);
 CREATE INDEX idx_time_attack_goals_predefined ON time_attack_goals(is_predefined);
+CREATE INDEX idx_time_attack_goals_name_key ON time_attack_goals(name_key) WHERE name_key IS NOT NULL;
+CREATE INDEX idx_time_attack_goals_custom_name ON time_attack_goals(custom_name) WHERE custom_name IS NOT NULL;
 
 -- ==================== 타임어택 세션 테이블 ====================
 CREATE TABLE time_attack_sessions (
