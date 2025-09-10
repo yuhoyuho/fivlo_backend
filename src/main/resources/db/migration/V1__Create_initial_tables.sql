@@ -15,6 +15,11 @@ CREATE TABLE users (
     is_premium BOOLEAN NOT NULL DEFAULT false,
     total_coins INTEGER NOT NULL DEFAULT 0,
     last_pomodoro_coin_date DATE,
+    lst_reminder_coin_date DATE,
+    last_attendance_coin_date DATE,
+    last_login DATE,
+    last_task_coin_date DATE,
+    fcm_token VARCHAR(255),
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -155,7 +160,8 @@ CREATE INDEX idx_user_items_equipped ON user_items(user_id, is_equipped);
 CREATE TABLE time_attack_goals (
     id BIGSERIAL PRIMARY KEY,
     user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    name VARCHAR(255) NOT NULL,
+    name_key VARCHAR(255) NOT NULL,
+    custom_name VARCHAR(255),
     is_predefined BOOLEAN NOT NULL DEFAULT false,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP

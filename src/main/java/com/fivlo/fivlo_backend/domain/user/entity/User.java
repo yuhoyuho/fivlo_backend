@@ -72,7 +72,6 @@ public class User {
     @Column(name = "last_task_coin_date")
     private LocalDate lastTaskCoinDate;
 
-
     @Column(name = "fcm_token", length = 255)
     private String fcmToken;
 

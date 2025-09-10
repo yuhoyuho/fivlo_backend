@@ -11,7 +11,7 @@ ADD COLUMN name_key VARCHAR(100);
 
 -- 사용자가 직접 추가한 목적의 이름
 -- isPredefined가 false일 때만 사용
-ALTER TABLE time_attack_goals
+ALTER TABLE time_attack_goale
 ADD COLUMN custom_name VARCHAR(255);
 
 -- ==================== 기존 데이터 마이그레이션 ====================
