@@ -101,8 +101,20 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         
         // 허용할 Origin (프론트엔드 URL)
-        configuration.setAllowedOriginPatterns(Arrays.asList("*"));
-        
+        configuration.setAllowedOrigins(Arrays.asList(
+                // 웹 프론트엔드
+                "http://localhost:3000",
+                // 실제 도메인
+                "https://fivlo.net",
+
+                // 안드로이드 시뮬레이터
+                "http://localhost",
+                // iOS 시뮬레이터 (Capacitor Framework)
+                "capacitor://localhost",
+                // iOS 시뮬레이터 (Ionic Framework)
+                "ionic://localhost"
+        ));
+
         // 허용할 HTTP 메서드
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         
