@@ -101,7 +101,7 @@ public class TimeAttackService {
             // 사용자 추가 목적
             goal = TimeAttackGoal.builder()
                     .user(user)
-                    .nameKey(null)
+                    .nameKey(request.getName())
                     .customName(request.getName())
                     .isPredefined(false)
                     .build();
