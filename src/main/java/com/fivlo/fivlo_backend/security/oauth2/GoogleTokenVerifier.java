@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Arrays;
 import java.util.Collections;
 
 @Component
@@ -19,6 +20,9 @@ public class GoogleTokenVerifier implements OAuth2TokenVerifier {
 
     @Value("${spring.security.oauth2.client.registration.google.client-id}")
     private final String GOOGLE_CLIENT_ID;
+    
+    @Value("${google.allowed-client-ids}")
+    private String allowedClientIds;
 
     private final UserRepository userRepository;
 
@@ -27,9 +31,9 @@ public class GoogleTokenVerifier implements OAuth2TokenVerifier {
     public User verifyAndGetOrCreate(String token) {
 
         try {
-            // Google ID 토큰 검증
+            // Google ID 토큰 검증 - 다중 클라이언트 ID 지원
             GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(new NetHttpTransport(), new GsonFactory())
-                    .setAudience(Collections.singletonList(GOOGLE_CLIENT_ID))
+                    .setAudience(Arrays.asList(allowedClientIds.split(",")))
                     .build();
 
             GoogleIdToken idToken = verifier.verify(token);
