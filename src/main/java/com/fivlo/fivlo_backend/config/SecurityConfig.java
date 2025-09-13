@@ -106,7 +106,8 @@ public class SecurityConfig {
                 "http://localhost:3000",
                 // 실제 도메인
                 "https://fivlo.net",
-
+                //expo 주소
+                "exp://220.86.100.58:8081",
                 // 안드로이드 시뮬레이터
                 "http://localhost",
                 // iOS 시뮬레이터 (Capacitor Framework)

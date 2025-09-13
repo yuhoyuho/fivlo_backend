@@ -36,7 +36,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     private final UserRepository userRepository;
 
     // 프론트엔드 리다이렉션 URL (환경에 따라 설정 가능)
-    @Value("${app.frontend.url:http://localhost:3000}")
+    @Value("${app.frontend.url:exp://220.86.100.58:8081}")
     private String frontendUrl;
     private static final String REDIRECT_PATH = "/auth/callback";
 
