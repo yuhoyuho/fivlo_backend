@@ -275,7 +275,7 @@ public class GeminiService {
                     .append("    { \"content\": \"단계별 활동 내용\", \"duration_in_seconds\": 0 }\n")
                     .append("  ]\n")
                     .append("}\n")
-                    .append("- 단계는 논리적 순서를 가지며 3~8개로 제안하세요.\n")
+                    .append("- 단계는 논리적 순서를 가지며 3~5개로 제안하세요.\n")
                     .append("- 전체 단계의 시간 합은 정확히 ").append(totalDurationInSeconds).append("초가 되도록 분배하세요.\n");
         }
         

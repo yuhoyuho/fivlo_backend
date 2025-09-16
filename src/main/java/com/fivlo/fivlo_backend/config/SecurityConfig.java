@@ -101,13 +101,19 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         
         // 허용할 Origin (프론트엔드 URL)
-        configuration.setAllowedOrigins(Arrays.asList(
+        configuration.setAllowedOriginPatterns(Arrays.asList(
                 // 웹 프론트엔드
                 "http://localhost:3000",
                 // 실제 도메인
                 "https://fivlo.net",
                 //expo 주소
-                "exp://220.86.100.58:8081",
+                "exp://*:8081",              // ← 모든 IP 허용
+                "exp://*:19000",             // ← Expo Metro bundler 포트들
+                "exp://*:19001",
+                "exp://*:19006",
+                "http://192.168.*:*",        // ← 로컬 네트워크 대역
+                "http://10.*:*",
+                "http://172.16.*:*",
                 // 안드로이드 시뮬레이터
                 "http://localhost",
                 // iOS 시뮬레이터 (Capacitor Framework)
