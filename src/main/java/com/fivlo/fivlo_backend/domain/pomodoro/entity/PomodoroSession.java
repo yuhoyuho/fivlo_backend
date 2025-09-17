@@ -90,6 +90,6 @@ public class PomodoroSession {
      * 사이클 완료 여부 업데이트
      */
     public void updateCycleCompletedStatus(Boolean isCycleCompleted) {
-        this.isCycleCompleted = true;
+        this.isCycleCompleted = isCycleCompleted;
     }
 }
