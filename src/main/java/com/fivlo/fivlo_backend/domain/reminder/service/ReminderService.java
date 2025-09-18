@@ -133,7 +133,7 @@ public class ReminderService {
                 .orElseThrow(() -> new NoSuchElementException("사용자를 찾을 수 없습니다."));
 
         LocalDate date = dto.date();
-        String dayOfWeek = date.getDayOfWeek().name();
+        String dayOfWeek = date.getDayOfWeek().name().substring(0, 1);
 
         List<ForgettingPreventionReminder> allReminders = reminderRepository.findByUser(user);
 
