@@ -12,7 +12,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import java.time.format.TextStyle;
+import java.util.Locale;
 import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.List;
@@ -33,7 +34,7 @@ public class ReminderService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new NoSuchElementException("사용자를 찾을 수 없습니다."));
 
-        String repetitionDays = convertDaysListToFixedString(dto.repetitionDays());
+        String repetitionDays = convertDaysListToString(dto.repetitionDays());
 
         ForgettingPreventionReminder reminder = ForgettingPreventionReminder.builder()
                 .user(user)
@@ -83,7 +84,8 @@ public class ReminderService {
         // 알림 조회
         ForgettingPreventionReminder reminder = findReminderAndCheckedByUserId(userId, reminderId);
 
-        String repetitionDays = (dto.repetitionDays() != null) ? convertDaysListToFixedString(dto.repetitionDays()) : null;
+        String repetitionDays = (dto.repetitionDays() != null) ?
+                convertDaysListToString(dto.repetitionDays()) : null;
         reminder.updateBasicInfo(dto.title(), dto.alarmTime(), repetitionDays);
 
         if(user.getIsPremium() && dto.locationName() != null) {
@@ -133,8 +135,9 @@ public class ReminderService {
                 .orElseThrow(() -> new NoSuchElementException("사용자를 찾을 수 없습니다."));
 
         LocalDate date = dto.date();
-        String dayOfWeek = date.getDayOfWeek().name();
-
+        String dayOfWeek = date.getDayOfWeek()
+                .getDisplayName(TextStyle.SHORT, Locale.ENGLISH)
+                .toUpperCase();
         List<ForgettingPreventionReminder> allReminders = reminderRepository.findByUser(user);
 
         List<ForgettingPreventionReminder> activeReminders = allReminders.stream()
@@ -170,23 +173,10 @@ public class ReminderService {
     /**
      * MON -> M, TUE -> T ..
      */
-    private static final List<String> DAYS_OF_WEEK = List.of("MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN");
-
-    private String convertDaysListToFixedString(List<String> days) {
-        if(days == null || days.isEmpty()) {
-            return "-------";
+    private String convertDaysListToString(List<String> days) {
+        if (days == null || days.isEmpty()) {
+            return "";
         }
-
-        char[] result = new char[7];
-        Arrays.fill(result, '-'); // 기본값 : "-"
-
-        for(String day : days) {
-            int idx = DAYS_OF_WEEK.indexOf(day.toUpperCase());
-            if(idx != -1) {
-                result[idx] = day.charAt(0);
-            }
-        }
-
-        return new String(result);
+        return String.join(",", days);
     }
 }

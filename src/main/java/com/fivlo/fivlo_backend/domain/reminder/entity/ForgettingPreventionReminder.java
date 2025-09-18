@@ -16,7 +16,7 @@ import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-
+import java.util.Arrays;
 /**
  * 망각방지 알림 엔티티
  * 사용자가 설정한 개별 망각방지 알림 항목의 정보를 저장하는 테이블
@@ -132,26 +132,20 @@ public class ForgettingPreventionReminder {
      * @param dayOfWeek 요일 (MON, TUE, WED, THU, FRI, SAT, SUN)
      */
     public boolean isActiveOnDay(String dayOfWeek) {
-        return repetitionDays != null && repetitionDays.contains(dayOfWeek);
+        if (repetitionDays == null || repetitionDays.isEmpty()) {
+            return false;
+        }
+        return Arrays.asList(repetitionDays.split(",")).contains(dayOfWeek);
     }
 
     /**
      * 반복 요일 배열 반환
      */
-    private static final List<String> DAYS_OF_WEEK = List.of("MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN");
 
     public List<String> getRepetitionDaysArray() {
-        if (repetitionDays == null || repetitionDays.length() != 7) {
+        if (repetitionDays == null || repetitionDays.isEmpty()) {
             return Collections.emptyList();
         }
-
-        List<String> result = new ArrayList<>();
-        for(int i = 0; i < repetitionDays.length(); i++) {
-            if(repetitionDays.charAt(i) != '-') {
-                result.add(DAYS_OF_WEEK.get(i));
-            }
-        }
-        // 예: "MON,WED,FRI" -> ["MON", "WED", "FRI"]
-        return result;
+        return Arrays.asList(repetitionDays.split(","));
     }
 }
