@@ -59,7 +59,7 @@ public class ObooneController {
      * HTTP : PATCH
      * EndPoint : /api/v1/oboone/equip/{userItemId}
      */
-    @PatchMapping(Routes.OBOONE_EQUIP)
+    @PatchMapping(Routes.OBOONE_EQUIP + "/{userItemId}")
     public ResponseEntity<String> equipItem(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long userItemId) {
@@ -70,7 +70,7 @@ public class ObooneController {
      * HTTP : PATCH
      * EndPoint : /api/v1/oboone/unequip/{userItemId}
      */
-    @PatchMapping(Routes.OBOONE_UNEQUIP)
+    @PatchMapping(Routes.OBOONE_UNEQUIP + "/{userItemId}")
     public ResponseEntity<String> unequipItem(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long userItemId) {
