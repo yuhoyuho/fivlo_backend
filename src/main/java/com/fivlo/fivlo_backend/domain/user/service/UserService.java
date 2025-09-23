@@ -58,6 +58,7 @@ public class UserService {
                 .email(dto.email())
                 .password(encodedPassword)
                 .nickname(nickname)
+                .alarmStatus(true)
                 .isPremium(true)
                 .build();
 
@@ -96,6 +97,34 @@ public class UserService {
     }
 
     /**
+     * 언어 설정 로직
+     */
+    @Transactional
+    public User.Language updateLanguage(Long id, User.Language language) {
+
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new NoSuchElementException("사용자를 찾을 수 없습니다. ID : " + id));
+
+        user.updateLanguage(language);
+
+        return user.getLanguage();
+    }
+
+    /**
+     * 알람 on/off 상태 변경
+     */
+    @Transactional
+    public String updateAlarmStatus(Long id) {
+
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new NoSuchElementException("사용자를 찾을 수 없습니다. ID : " + id));
+
+        user.updateAlarmStatus();
+
+        return "알림 상태 변경 완료! (현재 상태 : " + user.getAlarmStatus() + ")";
+    }
+
+    /**
      * 사용자 정보 조회 로직
      * @param userDetails
      * @return
@@ -107,7 +136,7 @@ public class UserService {
         User user = userRepository.findByEmail(userDetails.getUsername())
                 .orElseThrow(() -> new NoSuchElementException("사용자를 찾을 수 없습니다. Email : " + userDetails.getUsername() ));
 
-        return new UserInfoResponse(user.getId(), user.getNickname(), user.getProfileImageUrl(), user.getOnboardingType(), user.getIsPremium(), user.getTotalCoins());
+        return new UserInfoResponse(user.getId(), user.getNickname(), user.getProfileImageUrl(), user.getOnboardingType(), user.getIsPremium(), user.getTotalCoins(), user.getAlarmStatus());
     }
 
     /**

@@ -5,7 +5,6 @@ import com.fivlo.fivlo_backend.domain.user.auth.dto.ReissueRequestDto;
 import com.fivlo.fivlo_backend.domain.user.auth.dto.TokenResponseDto;
 import com.fivlo.fivlo_backend.domain.user.dto.*;
 import com.fivlo.fivlo_backend.domain.user.entity.User;
-import com.fivlo.fivlo_backend.domain.user.repository.UserRepository;
 import com.fivlo.fivlo_backend.domain.user.service.UserService;
 import com.fivlo.fivlo_backend.security.CustomUserDetails;
 import jakarta.validation.Valid;
@@ -20,8 +19,9 @@ public class UserController {
 
     private final UserService userService;
 
-    /** HTTP 메서드: POST
-        엔드포인트: /api/v1/auth/social-login
+    /**
+     * HTTP 메서드: POST
+     * 엔드포인트: /api/v1/auth/social-login
      */
     // 소셜 로그인
     @PostMapping(Routes.AUTH_SOCIAL_LOGIN)
@@ -57,6 +57,31 @@ public class UserController {
     }
 
     /**
+     * HTTP 메서드 : POST
+     * 엔드포인트 : /api/v1/users/languages
+     */
+    // 언어 설정
+    @PostMapping(Routes.USERS_LANGUAGES)
+    public ResponseEntity<User.Language> updateLanguage(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @Valid @RequestBody LanguageUpdateRequest dto) {
+
+        return ResponseEntity.status(200).body(userService.updateLanguage(userDetails.getUser().getId(), dto.language()));
+    }
+
+    /**
+     * HTTP 메서드 : POST
+     * 엔드포인트 : /api/v1/users/alarms
+     */
+    // 알림 기능 On/Off
+    @PostMapping(Routes.USERS_ALARM)
+    public ResponseEntity<String> updateAlarmStatus(
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+
+        return ResponseEntity.status(200).body(userService.updateAlarmStatus(userDetails.getUser().getId()));
+    }
+
+    /**
      * HTTP 메서드: GET
      * 엔드포인트: /api/v1/users/me
      */
@@ -85,6 +110,7 @@ public class UserController {
      * HTTP 메서드 : POST
      * 엔드포인트: /api/v1/users/attendance
      */
+    // 출석 시 코인 지급
     @PostMapping(Routes.USERS_ATTENDANCE)
     public ResponseEntity<String> attendance(
             @AuthenticationPrincipal CustomUserDetails userDetails) {

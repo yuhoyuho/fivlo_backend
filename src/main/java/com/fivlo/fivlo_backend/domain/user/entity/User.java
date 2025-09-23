@@ -51,6 +51,13 @@ public class User {
     @Column(name = "onboarding_type", length = 50)
     private OnboardingType onboardingType;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "language")
+    private Language language;
+
+    @Column(name = "alarm_status", nullable = false)
+    private Boolean alarmStatus;
+
     @Column(name = "is_premium", nullable = false)
     private Boolean isPremium = false;
 
@@ -88,7 +95,7 @@ public class User {
     @Builder
     public User(String email, String password, String socialId, SocialProvider socialProvider,
                 String nickname, String profileImageUrl, OnboardingType onboardingType,
-                Boolean isPremium, Integer totalCoins) {
+                Boolean alarmStatus, Boolean isPremium, Integer totalCoins) {
         this.email = email;
         this.password = password;
         this.socialId = socialId;
@@ -96,6 +103,7 @@ public class User {
         this.nickname = nickname;
         this.profileImageUrl = profileImageUrl;
         this.onboardingType = onboardingType;
+        this.alarmStatus = alarmStatus;
         this.isPremium = isPremium != null ? isPremium : false;
         this.totalCoins = totalCoins != null ? totalCoins : 0;
     }
@@ -107,6 +115,20 @@ public class User {
      */
     public void updateOnboardingType(OnboardingType onboardingType) {
         this.onboardingType = onboardingType;
+    }
+
+    /**
+     * 언어 설정/수정
+     */
+    public void updateLanguage(Language language) {
+        this.language = language;
+    }
+
+    /**
+     * 알람 on/off 상태 변경
+     */
+    public void updateAlarmStatus() {
+        this.alarmStatus = !this.alarmStatus;
     }
 
     /**
@@ -222,5 +244,13 @@ public class User {
         public String getDescription() {
             return description;
         }
+    }
+
+    /**
+     * 언어 설정
+     */
+    public enum Language {
+        한국어,
+        English
     }
 }

@@ -22,6 +22,8 @@ public class Routes {
     public static final String USERS_COINS = USERS_BASE + "/coins";
     public static final String USERS_PREMIUM = USERS_BASE + "/premium";
     public static final String USERS_ATTENDANCE = USERS_BASE + "/attendance";
+    public static final String USERS_LANGUAGES = USERS_BASE + "/languages";
+    public static final String USERS_ALARM = USERS_BASE + "/alarms";
     
     // ==================== Task 및 카테고리 관리 ====================
     public static final String TASKS_BASE = API_BASE + "/tasks";

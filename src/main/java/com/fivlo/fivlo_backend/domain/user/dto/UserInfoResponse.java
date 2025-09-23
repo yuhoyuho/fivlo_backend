@@ -7,5 +7,6 @@ public record UserInfoResponse(Long id,
                                String profileImageUrl,
                                User.OnboardingType onboardingType,
                                Boolean isPremium,
-                               Integer totalCoins) {
+                               Integer totalCoins,
+                               Boolean alarmStatus) {
 }
