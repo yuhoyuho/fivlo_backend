@@ -5,11 +5,14 @@ import com.fivlo.fivlo_backend.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.security.authentication.LockedException;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 /**
@@ -32,6 +35,7 @@ public class CustomUserDetailsService implements UserDetailsService {
      * @throws UsernameNotFoundException 사용자를 찾을 수 없을 때
      */
     @Override
+    @Transactional
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
         logger.debug("Loading user by email: {}", email);
 
@@ -43,6 +47,22 @@ public class CustomUserDetailsService implements UserDetailsService {
         
         User user = userOptional.get();
         logger.debug("User found: ID={}, Email={}, Premium={}", user.getId(), user.getEmail(), user.getIsPremium());
+
+        // 계정 활성화 여부 검증 및 복구
+        if(user.getStatus() == User.Status.DEACTIVATED) {
+            if(user.getDeactivatedAt() != null && user.getDeactivatedAt().isBefore(LocalDateTime.now().minusDays(7))) {
+                logger.warn("{}일이 지나 계정을 복구할 수 없습니다.", user.getDeactivatedAt());
+                throw new LockedException("복구 기간이 만료된 계정입니다.");
+            }
+            else {
+                logger.info("계정을 복구했습니다. email: {}", email);
+                user.restore();
+            }
+        }
+        else if(user.getStatus() == User.Status.DELETED) {
+            logger.warn("Login attempt for a deleted account : {}", email);
+            throw new LockedException("삭제된 계정입니다.");
+        }
 
         // User 엔티티로 CustomUserDetails 객체를 생성하여 반환
         return new CustomUserDetails(user);

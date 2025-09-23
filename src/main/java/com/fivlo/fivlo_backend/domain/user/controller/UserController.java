@@ -107,6 +107,18 @@ public class UserController {
     }
 
     /**
+     * HTTP 메서드 : DELETE
+     * 엔드포인트 : /api/v1/users/delete
+     */
+    // 사용자 탈퇴
+    @DeleteMapping(Routes.USERS_DELETE)
+    public ResponseEntity<String> deleteUser(
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+
+        return ResponseEntity.ok(userService.deleteUser(userDetails.getUser().getId()));
+    }
+
+    /**
      * HTTP 메서드 : POST
      * 엔드포인트: /api/v1/users/attendance
      */

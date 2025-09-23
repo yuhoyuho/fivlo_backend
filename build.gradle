@@ -48,6 +48,8 @@ dependencies {
 	//aws s3사용
 	implementation 'software.amazon.awssdk:s3:2.20.69'
 	implementation 'com.google.firebase:firebase-admin:9.2.0'
+	// Spring Batch 처리
+	implementation 'org.springframework.boot:spring-boot-starter-batch'
 	compileOnly 'org.projectlombok:lombok'
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
 	runtimeOnly 'org.postgresql:postgresql'
