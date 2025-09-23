@@ -8,15 +8,20 @@ import com.fivlo.fivlo_backend.domain.user.dto.*;
 import com.fivlo.fivlo_backend.domain.user.entity.User;
 import com.fivlo.fivlo_backend.domain.user.repository.UserRepository;
 import com.fivlo.fivlo_backend.security.CustomUserDetails;
+import com.fivlo.fivlo_backend.security.CustomUserDetailsService;
 import com.fivlo.fivlo_backend.security.JwtTokenProvider;
 import com.fivlo.fivlo_backend.security.oauth2.OAuth2TokenVerifier;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.security.authentication.LockedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
@@ -32,6 +37,8 @@ public class UserService {
     private final List<OAuth2TokenVerifier> tokenVerifiers;
     private final CoinTransactionService coinTransactionService;
     private final RefreshRepository refreshRepository;
+
+    private static final Logger logger = LoggerFactory.getLogger(UserService.class);
 
     /**
      * 이메일 회원가입 로직
@@ -58,6 +65,8 @@ public class UserService {
                 .email(dto.email())
                 .password(encodedPassword)
                 .nickname(nickname)
+                .alarmStatus(true)
+                .status(User.Status.ACTIVE)
                 .isPremium(true)
                 .build();
 
@@ -96,6 +105,34 @@ public class UserService {
     }
 
     /**
+     * 언어 설정 로직
+     */
+    @Transactional
+    public User.Language updateLanguage(Long id, User.Language language) {
+
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new NoSuchElementException("사용자를 찾을 수 없습니다. ID : " + id));
+
+        user.updateLanguage(language);
+
+        return user.getLanguage();
+    }
+
+    /**
+     * 알람 on/off 상태 변경
+     */
+    @Transactional
+    public String updateAlarmStatus(Long id) {
+
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new NoSuchElementException("사용자를 찾을 수 없습니다. ID : " + id));
+
+        user.updateAlarmStatus();
+
+        return "알림 상태 변경 완료! (현재 상태 : " + user.getAlarmStatus() + ")";
+    }
+
+    /**
      * 사용자 정보 조회 로직
      * @param userDetails
      * @return
@@ -107,7 +144,7 @@ public class UserService {
         User user = userRepository.findByEmail(userDetails.getUsername())
                 .orElseThrow(() -> new NoSuchElementException("사용자를 찾을 수 없습니다. Email : " + userDetails.getUsername() ));
 
-        return new UserInfoResponse(user.getId(), user.getNickname(), user.getProfileImageUrl(), user.getOnboardingType(), user.getIsPremium(), user.getTotalCoins());
+        return new UserInfoResponse(user.getId(), user.getNickname(), user.getProfileImageUrl(), user.getOnboardingType(), user.getIsPremium(), user.getTotalCoins(), user.getAlarmStatus());
     }
 
     /**
@@ -127,6 +164,18 @@ public class UserService {
     }
 
     /**
+     * 사용자 탈퇴 로직
+     */
+    @Transactional
+    public String deleteUser(Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new NoSuchElementException("사용자를 찾을 수 없습니다. ID : " + id));
+
+        user.deactivate();
+        return "회원 탈퇴 요청이 성공적으로 처리되었습니다.";
+    }
+
+    /**
      * 소셜 로그인 처리 로직
      * @param dto
      * @return
@@ -142,6 +191,21 @@ public class UserService {
 
         // 토큰 검증 및 사용자 정보 획득
         User user = verifier.verifyAndGetOrCreate(dto.token());
+
+        // 계정 활성화 여부 검증 및 복구
+        if(user.getStatus() == User.Status.DEACTIVATED) {
+            if(user.getDeactivatedAt() != null && user.getDeactivatedAt().isBefore(LocalDateTime.now().minusDays(7))) {
+                logger.warn("{}일이 지나 계정을 복구할 수 없습니다.", user.getDeactivatedAt());
+                throw new LockedException("복구 기간이 만료된 계정입니다.");
+            }
+            else {
+                user.restore();
+            }
+        }
+        else if(user.getStatus() == User.Status.DELETED) {
+            logger.warn("Login attempt for a deleted account : {}", user.getEmail());
+            throw new LockedException("삭제된 계정입니다.");
+        }
 
         // 신규 사용자인지 검증
         boolean isNewUser = user.getOnboardingType() == null;

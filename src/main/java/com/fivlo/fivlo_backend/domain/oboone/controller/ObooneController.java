@@ -38,7 +38,7 @@ public class ObooneController {
      * HTTP : POST
      * EndPoint : /api/v1/oboone/purchase
      */
-    @PostMapping("/api/v1/oboone/purchase")
+    @PostMapping(Routes.OBOONE_PURCHASE)
     public ResponseEntity<ObooneDto.PurchaseResponse> purchaseItem(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @RequestBody ObooneDto.PurchaseRequest request) {
@@ -59,7 +59,7 @@ public class ObooneController {
      * HTTP : PATCH
      * EndPoint : /api/v1/oboone/equip/{userItemId}
      */
-    @PatchMapping(Routes.OBOONE_EQUIP + "/{userItemId}")
+    @PatchMapping(Routes.OBOONE_EQUIP_BY_ID)
     public ResponseEntity<String> equipItem(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long userItemId) {
@@ -70,7 +70,7 @@ public class ObooneController {
      * HTTP : PATCH
      * EndPoint : /api/v1/oboone/unequip/{userItemId}
      */
-    @PatchMapping(Routes.OBOONE_UNEQUIP + "/{userItemId}")
+    @PatchMapping(Routes.OBOONE_UNEQUIP_BY_ID)
     public ResponseEntity<String> unequipItem(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long userItemId) {

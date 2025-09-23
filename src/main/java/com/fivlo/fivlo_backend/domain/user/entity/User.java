@@ -51,6 +51,13 @@ public class User {
     @Column(name = "onboarding_type", length = 50)
     private OnboardingType onboardingType;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "language")
+    private Language language;
+
+    @Column(name = "alarm_status", nullable = false)
+    private Boolean alarmStatus;
+
     @Column(name = "is_premium", nullable = false)
     private Boolean isPremium = false;
 
@@ -75,6 +82,13 @@ public class User {
     @Column(name = "fcm_token", length = 255)
     private String fcmToken;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false)
+    private Status status = Status.ACTIVE;
+
+    @Column(name = "deactivated_at")
+    private LocalDateTime deactivatedAt; // 탈퇴 신청한 날짜
+
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -88,7 +102,7 @@ public class User {
     @Builder
     public User(String email, String password, String socialId, SocialProvider socialProvider,
                 String nickname, String profileImageUrl, OnboardingType onboardingType,
-                Boolean isPremium, Integer totalCoins) {
+                Boolean alarmStatus, Boolean isPremium, Integer totalCoins, Status status) {
         this.email = email;
         this.password = password;
         this.socialId = socialId;
@@ -96,6 +110,8 @@ public class User {
         this.nickname = nickname;
         this.profileImageUrl = profileImageUrl;
         this.onboardingType = onboardingType;
+        this.alarmStatus = alarmStatus;
+        this.status = status;
         this.isPremium = isPremium != null ? isPremium : false;
         this.totalCoins = totalCoins != null ? totalCoins : 0;
     }
@@ -107,6 +123,20 @@ public class User {
      */
     public void updateOnboardingType(OnboardingType onboardingType) {
         this.onboardingType = onboardingType;
+    }
+
+    /**
+     * 언어 설정/수정
+     */
+    public void updateLanguage(Language language) {
+        this.language = language;
+    }
+
+    /**
+     * 알람 on/off 상태 변경
+     */
+    public void updateAlarmStatus() {
+        this.alarmStatus = !this.alarmStatus;
     }
 
     /**
@@ -185,6 +215,38 @@ public class User {
     }
 
     /**
+     * 회원 탈퇴 신청 (계정 비활성화 상태로 바꿈)
+     */
+    public void deactivate() {
+        this.status = Status.DEACTIVATED;
+        this.deactivatedAt = LocalDateTime.now();
+    }
+
+    /**
+     * 유예기간 1주일 내로 로그인하면 다시 활성화 상태로 바꿈
+     */
+    public void restore() {
+        this.status = Status.ACTIVE;
+        this.deactivatedAt = null;
+    }
+
+    /**
+     * 최종 삭제 (7일 지난 경우)
+     */
+    public boolean isReadyForDeletion() {
+        return this.status == Status.DEACTIVATED &&
+                this.deactivatedAt != null &&
+                this.deactivatedAt.isBefore(LocalDateTime.now().minusDays(7));
+    }
+
+    /**
+     * 사용자 status 변경
+     */
+    public void updateStatus(Status status) {
+        this.status = status;
+    }
+
+    /**
      * 소셜 로그인 연동
      */
     public void linkSocialAccount(String socialId, SocialProvider socialProvider) {
@@ -222,5 +284,22 @@ public class User {
         public String getDescription() {
             return description;
         }
+    }
+
+    /**
+     * 언어 설정
+     */
+    public enum Language {
+        한국어,
+        English
+    }
+
+    /**
+     * 계정 상태
+     */
+    public enum Status {
+        ACTIVE, // 활성화
+        DEACTIVATED, // 비활성화
+        DELETED // 삭제 (Spring Batch로 처리)
     }
 }
