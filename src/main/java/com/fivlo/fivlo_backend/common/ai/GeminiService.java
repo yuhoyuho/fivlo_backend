@@ -262,7 +262,7 @@ public class GeminiService {
                     .append("    { \"content\": \"Step-by-step activity content\", \"duration_in_seconds\": 0 }\n")
                     .append("  ]\n")
                     .append("}\n")
-                    .append("- Steps should be in logical order with 3-8 suggestions.\n")
+                    .append("- Steps should be in logical order with 3-5 suggestions.\n")
                     .append("- The total time of all steps should be exactly ").append(totalDurationInSeconds).append(" seconds.\n");
         } else {
             // 한국어 프롬프트 (기본값)
