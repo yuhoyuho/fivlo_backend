@@ -15,6 +15,7 @@ public class Routes {
     public static final String AUTH_SIGNUP = AUTH_BASE + "/signup";
     public static final String AUTH_SIGNIN = AUTH_BASE + "/signin";
     public static final String AUTH_REFRESH = AUTH_BASE + "/reissue";
+    public static final String AUTH_LOGOUT = AUTH_BASE + "/logout";
     
     public static final String USERS_BASE = API_BASE + "/users";
     public static final String USERS_ONBOARDING = USERS_BASE + "/onboarding";

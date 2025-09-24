@@ -8,7 +8,6 @@ import com.fivlo.fivlo_backend.domain.user.dto.*;
 import com.fivlo.fivlo_backend.domain.user.entity.User;
 import com.fivlo.fivlo_backend.domain.user.repository.UserRepository;
 import com.fivlo.fivlo_backend.security.CustomUserDetails;
-import com.fivlo.fivlo_backend.security.CustomUserDetailsService;
 import com.fivlo.fivlo_backend.security.JwtTokenProvider;
 import com.fivlo.fivlo_backend.security.oauth2.OAuth2TokenVerifier;
 import jakarta.validation.Valid;
@@ -281,5 +280,17 @@ public class UserService {
         refreshRepository.save(newRefreshToken);
 
         return newTokenDto;
+    }
+
+    /**
+     * 사용자 로그아웃 로직
+     */
+    @Transactional
+    public String logout(String refreshToken) {
+        RefreshEntity refreshEntity = refreshRepository.findByToken(refreshToken)
+                .orElseThrow(() -> new IllegalArgumentException("유효하지 않은 토큰입니다. : " + refreshToken));
+
+        refreshRepository.delete(refreshEntity);
+        return "로그아웃되었습니다.";
     }
 }

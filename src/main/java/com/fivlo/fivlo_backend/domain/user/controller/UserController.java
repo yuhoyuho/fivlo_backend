@@ -139,4 +139,14 @@ public class UserController {
     public ResponseEntity<TokenResponseDto> reissue(@Valid @RequestBody ReissueRequestDto dto) {
         return ResponseEntity.ok(userService.reissue(dto));
     }
+
+    /**
+     * HTTP : POST
+     * EndPoint : /api/v1/auth/logout
+     */
+    // 사용자 로그아웃
+    @PostMapping(Routes.AUTH_LOGOUT)
+    public ResponseEntity<String> logout(@Valid @RequestBody LogoutRequest dto) {
+        return ResponseEntity.ok(userService.logout(dto.refreshToken()));
+    }
 }
