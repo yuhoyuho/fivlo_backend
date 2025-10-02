@@ -1,5 +1,5 @@
 services:
-  db:
+  postgresql:
     image: postgis/postgis:15-3.3
     container_name: fivlo-postgres
     environment:
@@ -41,7 +41,7 @@ services:
       TZ: Asia/Seoul
       
       # Database Configuration (Spring Boot 표준)
-      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/fivlo_db
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgresql:5432/fivlo_db
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
       
