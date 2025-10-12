@@ -163,9 +163,10 @@ public class TimeAttackService {
      * AI 기반 단계 추천 (GeminiService Redis 캐싱 활용)
      */
     public TimeAttackAIDto.RecommendStepsResponse recommendSteps(Long userId, TimeAttackAIDto.RecommendStepsRequest request) {
-        log.debug("Requesting AI step recommendation for goalId: {}, duration: {}s, language: {}", 
-                 request.getGoalId(), request.getTotalDurationInSeconds(), request.getLanguageCode());
-
+        long methodStartTime = System.currentTimeMillis();
+        log.info("⏱️ 타임어택 단계 추천 시작 - goalId: {}, duration: {}s", 
+                 request.getGoalId(), request.getTotalDurationInSeconds());
+    
         try {
             // 1. goalId로 목적 조회 및 사용자 권한 확인
             validateUser(userId);
@@ -173,17 +174,20 @@ public class TimeAttackService {
             String goalName = goal.getDisplayName();
             
             log.debug("Found goal: {} (ID: {}) for user: {}", goalName, request.getGoalId(), userId);
-
+    
             // 2. AI 호출 (GeminiService에서 자동으로 캐싱 처리)
+            long aiStartTime = System.currentTimeMillis();
             String jsonResponse = geminiService.recommendTimeAttackSteps(
                 goalName,  // ← AI에게는 실제 활동 이름 전달
                 request.getTotalDurationInSeconds(),
                 request.getLanguageCode()
             );
-
+            long aiCallTime = System.currentTimeMillis() - aiStartTime;
+            log.info("🤖 AI 호출 완료 - 소요 시간: {}ms", aiCallTime);
+    
             // 3. JSON 파싱
             AITimeAttackResponse aiResponse = objectMapper.readValue(jsonResponse, AITimeAttackResponse.class);
-
+    
             List<TimeAttackAIDto.RecommendedStep> steps = aiResponse.getRecommendedSteps().stream()
                     .map(step -> new TimeAttackAIDto.RecommendedStep(
                             step.getContent(),
@@ -191,21 +195,27 @@ public class TimeAttackService {
                             0  // recommendedOrder는 나중에 설정
                     ))
                     .toList();
-
+    
             TimeAttackAIDto.RecommendStepsResponse response = new TimeAttackAIDto.RecommendStepsResponse(
                     steps, 
                     steps.size(), 
                     steps.stream().mapToInt(TimeAttackAIDto.RecommendedStep::getDurationInSeconds).sum(),
                     "AI 단계 추천이 완료되었습니다."
             );
-
+    
+            long totalTime = System.currentTimeMillis() - methodStartTime;
+            log.info("✅ 타임어택 단계 추천 완료 - 총 소요 시간: {}ms (AI: {}ms, 파싱: {}ms)", 
+                     totalTime, aiCallTime, totalTime - aiCallTime);
+    
             return response;
-
+    
         } catch (Exception e) {
-            log.error("Failed to get AI recommendation for goalId: {}", request.getGoalId(), e);
+            long totalTime = System.currentTimeMillis() - methodStartTime;
+            log.error("❌ AI 추천 실패 - goalId: {}, 소요 시간: {}ms", request.getGoalId(), totalTime, e);
             throw new RuntimeException("AI 추천을 가져오는데 실패했습니다: " + e.getMessage());
         }
     }
+        
 
     // ==================== 세션 관리 ====================
 
