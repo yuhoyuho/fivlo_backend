@@ -36,7 +36,7 @@ public class AppleClientSecretGenerator {
                 .issuer(appleProperties.getTeamId())
                 .issuedAt(now)
                 .expiration(new Date(now.getTime() + expirationTime))
-                .audience().add("https://appliid.apple.com")
+                .audience().add("https://appleid.apple.com")//오타 수정
                 .and()
                 .subject(appleProperties.getClientId())
                 // Signature 설정
