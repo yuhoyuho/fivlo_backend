@@ -76,6 +76,7 @@ public class AppleTokenVerifier implements OAuth2TokenVerifier {
                                     .socialId(socialId)
                                     .socialProvider(socialProvider)
                                     .nickname("사용자_" + socialId.substring(0, 5))
+                                    .alarmStatus(true) //알람 상태 추가(기본값 true 설정)
                                     .status(User.Status.ACTIVE)
                                     .isPremium(true) // 정책에 맞게 수정
                                     .build();
