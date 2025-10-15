@@ -8,6 +8,7 @@ import com.fivlo.fivlo_backend.domain.reminder.repository.ReminderRepository;
 import com.fivlo.fivlo_backend.domain.user.entity.User;
 import com.fivlo.fivlo_backend.domain.user.repository.UserRepository;
 import com.fivlo.fivlo_backend.domain.user.service.CoinTransactionService;
+import com.fivlo.fivlo_backend.domain.reminder.service.GeoService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -15,9 +16,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.format.TextStyle;
 import java.util.Locale;
 import java.time.LocalDate;
-import java.util.Arrays;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Arrays;
 
 @Service
 @RequiredArgsConstructor
@@ -27,6 +28,8 @@ public class ReminderService {
     private final ReminderRepository reminderRepository;
     private final ReminderCompletionRepository reminderCompletionRepository;
     private final CoinTransactionService coinTransactionService;
+    // 추가: GeoService 주입
+    private final GeoService geoService;
 
     // API 49 : 망각방지 알림 생성
     @Transactional
@@ -45,6 +48,9 @@ public class ReminderService {
 
         if(user.getIsPremium() && dto.locationName() != null) {
             reminder.updateLocationInfo(dto.locationName(), dto.locationAddress(), dto.locationLatitude(), dto.locationLongitude());
+            // 좌표가 있는 경우 geometry 포인트도 설정
+            var point = geoService.createPoint(dto.locationLongitude(), dto.locationLatitude());
+            reminder.setLocation(point);
         }
 
         return reminderRepository.save(reminder).getId();
@@ -90,6 +96,9 @@ public class ReminderService {
 
         if(user.getIsPremium() && dto.locationName() != null) {
             reminder.updateLocationInfo(dto.locationName(), dto.locationAddress(), dto.locationLatitude(), dto.locationLongitude());
+            // 좌표가 있는 경우 geometry 포인트도 설정
+            var point = geoService.createPoint(dto.locationLongitude(), dto.locationLatitude());
+            reminder.setLocation(point);
         }
 
         return "알림 항목이 성공적으로 수정되었습니다.";

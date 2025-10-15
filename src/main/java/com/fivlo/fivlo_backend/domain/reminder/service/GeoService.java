@@ -3,6 +3,9 @@ package com.fivlo.fivlo_backend.domain.reminder.service;
 import com.fivlo.fivlo_backend.domain.reminder.dto.AddressDto;
 import com.fivlo.fivlo_backend.domain.reminder.dto.AddressSearchResponse;
 import com.fivlo.fivlo_backend.domain.reminder.dto.KakaoAddressResponse;
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.Point;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -16,6 +19,7 @@ public class GeoService {
 
     private final WebClient webClient;
     private final String kakaoApiKey;
+    private final GeometryFactory geometryFactory = new GeometryFactory();
 
     public GeoService(WebClient.Builder webClientBuilder,
                       @Value("${spring.security.oauth2.client.registration.kakao.client-id}") String kakaoApiKey) {
@@ -50,5 +54,15 @@ public class GeoService {
         );
 
         return new AddressSearchResponse(List.of(dto));
+    }
+
+    /**
+     * BigDecimal 좌표를 JTS Point로 변환
+     */
+    public Point createPoint(BigDecimal longitude, BigDecimal latitude) {
+        if (longitude == null || latitude == null) {
+            return null;
+        }
+        return geometryFactory.createPoint(new Coordinate(longitude.doubleValue(), latitude.doubleValue()));
     }
 }
