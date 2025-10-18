@@ -34,6 +34,24 @@ public interface TimeAttackSessionRepository extends JpaRepository<TimeAttackSes
     // 특정 목표의 미완료 세션 찾기 (임시 세션 체크)
     java.util.Optional<TimeAttackSession> findByTimeAttackGoal_IdAndIsCompletedFalse(Long timeAttackGoalId);
     
+    // ==================== AI 추천 최적화: 이전 세션 재사용 ====================
+    
+    /**
+     * 특정 사용자의 특정 목표+시간 조합으로 가장 최근에 저장한 세션 조회
+     * 사용자가 이전에 수정하고 저장한 루틴을 재사용하기 위함
+     * 
+     * @param userId 사용자 ID
+     * @param timeAttackGoalId 목표 ID
+     * @param totalDurationInSeconds 총 시간 (초)
+     * @return 가장 최근 세션 (Optional)
+     */
+    @EntityGraph(attributePaths = {"steps"})
+    java.util.Optional<TimeAttackSession> findTopByUser_IdAndTimeAttackGoal_IdAndTotalDurationInSecondsOrderByCreatedAtDesc(
+        Long userId, 
+        Long timeAttackGoalId, 
+        Integer totalDurationInSeconds
+    );
+    
     // ==================== 성능 측정용 통계 쿼리 ====================
     
     /**

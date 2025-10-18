@@ -160,12 +160,17 @@ public class TimeAttackService {
     // ==================== AI 추천 (캐싱 지원) ====================
 
     /**
-     * AI 기반 단계 추천 (GeminiService Redis 캐싱 활용)
+     * AI 기반 단계 추천 (DB 세션 재사용 + GeminiService Redis 캐싱 병행)
+     * 
+     * 동작 흐름:
+     * 1. 먼저 DB에서 같은 목표+시간의 이전 세션 조회 (사용자가 수정하고 저장한 루틴)
+     * 2. 이전 세션이 있으면 → DB에서 가져온 단계 반환 (사용자 수정본)
+     * 3. 이전 세션이 없으면 → AI 호출 (Redis 캐시 활용)
      */
     public TimeAttackAIDto.RecommendStepsResponse recommendSteps(Long userId, TimeAttackAIDto.RecommendStepsRequest request) {
         long methodStartTime = System.currentTimeMillis();
-        log.info("⏱️ 타임어택 단계 추천 시작 - goalId: {}, duration: {}s", 
-                 request.getGoalId(), request.getTotalDurationInSeconds());
+        log.info(" 타임어택 단계 추천 시작 - userId: {}, goalId: {}, duration: {}s",
+                 userId, request.getGoalId(), request.getTotalDurationInSeconds());
     
         try {
             // 1. goalId로 목적 조회 및 사용자 권한 확인
@@ -175,7 +180,42 @@ public class TimeAttackService {
             
             log.debug("Found goal: {} (ID: {}) for user: {}", goalName, request.getGoalId(), userId);
     
-            // 2. AI 호출 (GeminiService에서 자동으로 캐싱 처리)
+            // 2. 먼저 DB에서 같은 목표+시간의 이전 세션 찾기 (사용자 수정본 우선)
+            java.util.Optional<TimeAttackSession> recentSession = timeAttackSessionRepository
+                .findTopByUser_IdAndTimeAttackGoal_IdAndTotalDurationInSecondsOrderByCreatedAtDesc(
+                    userId,
+                    request.getGoalId(),
+                    request.getTotalDurationInSeconds()
+                );
+            
+            // 3. 이전 세션이 있으면 → 사용자가 저장한 루틴 반환
+            if (recentSession.isPresent()) {
+                TimeAttackSession session = recentSession.get();
+                List<TimeAttackStep> savedSteps = session.getSteps();
+                
+                long totalTime = System.currentTimeMillis() - methodStartTime;
+                log.info("🔄 이전 세션 재사용 - sessionId: {}, userId: {}, 단계 수: {}, 소요 시간: {}ms", 
+                         session.getId(), userId, savedSteps.size(), totalTime);
+                
+                // DB에서 가져온 단계를 응답 형식으로 변환
+                List<TimeAttackAIDto.RecommendedStep> steps = savedSteps.stream()
+                        .map(step -> new TimeAttackAIDto.RecommendedStep(
+                                step.getContent(),
+                                step.getDurationInSeconds(),
+                                step.getStepOrder()
+                        ))
+                        .toList();
+                
+                return new TimeAttackAIDto.RecommendStepsResponse(
+                        steps,
+                        steps.size(),
+                        steps.stream().mapToInt(TimeAttackAIDto.RecommendedStep::getDurationInSeconds).sum(),
+                        "이전에 저장한 루틴을 불러왔습니다."
+                );
+            }
+            
+            // 4. 이전 세션이 없으면 → AI 호출 (GeminiService에서 자동으로 Redis 캐싱 처리)
+            log.info(" 새로운 AI 추천 시작 - goalId: {}, 이전 세션 없음", request.getGoalId());
             long aiStartTime = System.currentTimeMillis();
             String jsonResponse = geminiService.recommendTimeAttackSteps(
                 goalName,  // ← AI에게는 실제 활동 이름 전달
@@ -185,7 +225,7 @@ public class TimeAttackService {
             long aiCallTime = System.currentTimeMillis() - aiStartTime;
             log.info("🤖 AI 호출 완료 - 소요 시간: {}ms", aiCallTime);
     
-            // 3. JSON 파싱
+            // 5. JSON 파싱
             AITimeAttackResponse aiResponse = objectMapper.readValue(jsonResponse, AITimeAttackResponse.class);
     
             List<TimeAttackAIDto.RecommendedStep> steps = aiResponse.getRecommendedSteps().stream()
