@@ -64,9 +64,11 @@ public class GeminiService {
             long aiStartTime = System.currentTimeMillis();
             logger.info("⏳ Cache MISS - AI 호출 시작...");
 
-            // JSON만 생성하도록 모델에 강제
+            // JSON만 생성하도록 모델에 강제 + 속도 최적화
             GenerateContentConfig cfg = GenerateContentConfig.builder()
                     .responseMimeType("application/json") // JSON만 달라!
+                    .temperature(0.3f)  //  속도 개선 (기본값: 1.0)
+                    .maxOutputTokens(512)  //  응답 길이 제한
                     .build();
 
             // 공식 시그니처: (model, contents, config)
@@ -76,7 +78,7 @@ public class GeminiService {
             long aiCallTime = System.currentTimeMillis() - aiStartTime;
             totalAiCallTime.addAndGet(aiCallTime);
             aiCallCount.incrementAndGet();
-            logger.info("🤖 AI 응답 완료 - 소요 시간: {}ms", aiCallTime);
+            logger.info(" AI 응답 완료 - 소요 시간: {}ms", aiCallTime);
 
             // 혹시라도 모델이 앞뒤로 설명/마크다운을 섞어 보내면 첫 번째 JSON만 추출
             String response = extractFirstJson(text);
@@ -278,8 +280,8 @@ public class GeminiService {
                     .append("    { \"content\": \"Step-by-step activity content\", \"duration_in_seconds\": 0 }\n")
                     .append("  ]\n")
                     .append("}\n")
-                    .append("- Steps should be in logical order with 3-5 suggestions.\n")
-                    .append("- The total time of all steps should be exactly ").append(totalDurationInSeconds).append(" seconds.\n");
+                    .append("- 3-5 steps in logical order.\n")
+                    .append("- The total time of all steps should be exactly ").append(totalDurationInSeconds).append(" seconds.\n");  // ✅ "exactly" 제거
         } else {
             // 한국어 프롬프트 (기본값)
             prompt.append("당신은 시간 관리 전문가입니다. 다음 활동을 효율적으로 완료할 수 있도록 단계별 일정을 추천해주세요.\n\n")
@@ -291,8 +293,8 @@ public class GeminiService {
                     .append("    { \"content\": \"단계별 활동 내용\", \"duration_in_seconds\": 0 }\n")
                     .append("  ]\n")
                     .append("}\n")
-                    .append("- 단계는 논리적 순서를 가지며 3~5개로 제안하세요.\n")
-                    .append("- 전체 단계의 시간 합은 정확히 ").append(totalDurationInSeconds).append("초가 되도록 분배하세요.\n");
+                    .append("- 3~5개 단계로 제안하세요.\n")
+                    .append("- 전체 단계의 시간 합은 ").append(totalDurationInSeconds).append("초입니다.\n");  // ✅ "정확히" 제거
         }
         
         return prompt.toString();
