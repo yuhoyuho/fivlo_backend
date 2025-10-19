@@ -44,13 +44,23 @@ public class TimeAttackService {
     private final ObjectMapper objectMapper;
     private final TimeAttackGoalInitService goalInitService;
 
+    // ==================== 성능 측정 메트릭 ====================
+    
+    // DB 세션 재사용 통계
+    private final java.util.concurrent.atomic.AtomicLong dbSessionHits = new java.util.concurrent.atomic.AtomicLong(0);
+    private final java.util.concurrent.atomic.AtomicLong dbSessionMisses = new java.util.concurrent.atomic.AtomicLong(0);
+    private final java.util.concurrent.atomic.AtomicLong totalDbQueryTime = new java.util.concurrent.atomic.AtomicLong(0); // 밀리초
+    
     // AI 응답 캐싱은 GeminiService의 Redis 캐시를 사용
 
     // ==================== 목적 관리 (i18n 지원) ====================
 
     /**
      * 사용자의 모든 타임어택 목적 조회
+     * 
+     * NOTE: 미리 정의된 목적이 없으면 생성하므로 readOnly가 아님
      */
+    @Transactional //  readOnly=false (기본값) - 목적 생성 가능
     public TimeAttackGoalDto.GoalListResponse getAllGoals(Long userId) {
         log.debug("Getting all time attack goals for user: {}", userId);
         User user = validateUser(userId);
@@ -73,23 +83,26 @@ public class TimeAttackService {
      */
     @Transactional
     public TimeAttackGoalDto.GoalResponse createGoal(Long userId, TimeAttackGoalDto.GoalRequest request) {
+        //  NPE 방어: isPredefined가 null이면 false로 처리
+        boolean isPredefined = Boolean.TRUE.equals(request.getIsPredefined());
+        
         log.debug("Creating time attack goal for user: {}, name: {}, isPredefined: {}", 
-                 userId, request.getName(), request.getIsPredefined());
+                 userId, request.getName(), isPredefined);
 
         User user = validateUser(userId);
 
         // 미리 정의된 목적 검증
-        if (request.getIsPredefined() && !goalInitService.isValidPredefinedGoal(request.getName())) {
+        if (isPredefined && !goalInitService.isValidPredefinedGoal(request.getName())) {
             log.warn("Invalid predefined goal attempted: {} for user: {}", request.getName(), userId);
             throw new IllegalArgumentException("유효하지 않은 미리 정의된 목적입니다: " + request.getName());
         }
 
         // 타입별 중복 체크
-        validateGoalDuplication(userId, request.getName(), request.getIsPredefined(), null);
+        validateGoalDuplication(userId, request.getName(), isPredefined, null);
 
         TimeAttackGoal goal;
         
-        if (request.getIsPredefined()) {
+        if (isPredefined) {
             // 미리 정의된 목적 (i18n 키)
             goal = TimeAttackGoal.builder()
                     .user(user)
@@ -101,7 +114,7 @@ public class TimeAttackService {
             // 사용자 추가 목적
             goal = TimeAttackGoal.builder()
                     .user(user)
-                    .nameKey(request.getName())
+                    .nameKey(null)  //  커스텀 목적은 nameKey null
                     .customName(request.getName())
                     .isPredefined(false)
                     .build();
@@ -181,24 +194,29 @@ public class TimeAttackService {
             log.debug("Found goal: {} (ID: {}) for user: {}", goalName, request.getGoalId(), userId);
     
             // 2. 먼저 DB에서 같은 목표+시간의 이전 세션 찾기 (사용자 수정본 우선)
+            long dbQueryStartTime = System.currentTimeMillis();
             java.util.Optional<TimeAttackSession> recentSession = timeAttackSessionRepository
                 .findTopByUser_IdAndTimeAttackGoal_IdAndTotalDurationInSecondsOrderByCreatedAtDesc(
                     userId,
                     request.getGoalId(),
                     request.getTotalDurationInSeconds()
                 );
+            long dbQueryTime = System.currentTimeMillis() - dbQueryStartTime;
+            totalDbQueryTime.addAndGet(dbQueryTime);
             
             // 3. 이전 세션이 있으면 → 사용자가 저장한 루틴 반환
             if (recentSession.isPresent()) {
+                dbSessionHits.incrementAndGet(); //  DB 히트 카운트
                 TimeAttackSession session = recentSession.get();
                 List<TimeAttackStep> savedSteps = session.getSteps();
                 
                 long totalTime = System.currentTimeMillis() - methodStartTime;
-                log.info("🔄 이전 세션 재사용 - sessionId: {}, userId: {}, 단계 수: {}, 소요 시간: {}ms", 
-                         session.getId(), userId, savedSteps.size(), totalTime);
+                log.info(" 이전 세션 재사용 - sessionId: {}, userId: {}, 단계 수: {}, DB 조회: {}ms, 총 소요: {}ms",
+                         session.getId(), userId, savedSteps.size(), dbQueryTime, totalTime);
                 
-                // DB에서 가져온 단계를 응답 형식으로 변환
+                // DB에서 가져온 단계를 응답 형식으로 변환 ( 정렬 보장)
                 List<TimeAttackAIDto.RecommendedStep> steps = savedSteps.stream()
+                        .sorted(java.util.Comparator.comparingInt(TimeAttackStep::getStepOrder))  //  stepOrder 기준 정렬
                         .map(step -> new TimeAttackAIDto.RecommendedStep(
                                 step.getContent(),
                                 step.getDurationInSeconds(),
@@ -215,7 +233,8 @@ public class TimeAttackService {
             }
             
             // 4. 이전 세션이 없으면 → AI 호출 (GeminiService에서 자동으로 Redis 캐싱 처리)
-            log.info(" 새로운 AI 추천 시작 - goalId: {}, 이전 세션 없음", request.getGoalId());
+            dbSessionMisses.incrementAndGet(); //  DB 미스 카운트
+            log.info(" 새로운 AI 추천 시작 - goalId: {}, 이전 세션 없음, DB 조회: {}ms", request.getGoalId(), dbQueryTime);
             long aiStartTime = System.currentTimeMillis();
             String jsonResponse = geminiService.recommendTimeAttackSteps(
                 goalName,  // ← AI에게는 실제 활동 이름 전달
@@ -223,17 +242,21 @@ public class TimeAttackService {
                 request.getLanguageCode()
             );
             long aiCallTime = System.currentTimeMillis() - aiStartTime;
-            log.info("🤖 AI 호출 완료 - 소요 시간: {}ms", aiCallTime);
+            log.info(" AI 호출 완료 - 소요 시간: {}ms", aiCallTime);
     
             // 5. JSON 파싱
             AITimeAttackResponse aiResponse = objectMapper.readValue(jsonResponse, AITimeAttackResponse.class);
     
-            List<TimeAttackAIDto.RecommendedStep> steps = aiResponse.getRecommendedSteps().stream()
-                    .map(step -> new TimeAttackAIDto.RecommendedStep(
-                            step.getContent(),
-                            step.getDurationInSeconds(),
-                            0  // recommendedOrder는 나중에 설정
-                    ))
+            //  AI 추천 단계에 순서 부여 (1부터 시작)
+            List<TimeAttackAIDto.RecommendedStep> steps = java.util.stream.IntStream.range(0, aiResponse.getRecommendedSteps().size())
+                    .mapToObj(i -> {
+                        var step = aiResponse.getRecommendedSteps().get(i);
+                        return new TimeAttackAIDto.RecommendedStep(
+                                step.getContent(),
+                                step.getDurationInSeconds(),
+                                i + 1  //  1부터 시작하는 순서
+                        );
+                    })
                     .toList();
     
             TimeAttackAIDto.RecommendStepsResponse response = new TimeAttackAIDto.RecommendStepsResponse(
@@ -244,14 +267,14 @@ public class TimeAttackService {
             );
     
             long totalTime = System.currentTimeMillis() - methodStartTime;
-            log.info("✅ 타임어택 단계 추천 완료 - 총 소요 시간: {}ms (AI: {}ms, 파싱: {}ms)", 
+            log.info(" 타임어택 단계 추천 완료 - 총 소요 시간: {}ms (AI: {}ms, 파싱: {}ms)",
                      totalTime, aiCallTime, totalTime - aiCallTime);
     
             return response;
     
         } catch (Exception e) {
             long totalTime = System.currentTimeMillis() - methodStartTime;
-            log.error("❌ AI 추천 실패 - goalId: {}, 소요 시간: {}ms", request.getGoalId(), totalTime, e);
+            log.error(" AI 추천 실패 - goalId: {}, 소요 시간: {}ms", request.getGoalId(), totalTime, e);
             throw new RuntimeException("AI 추천을 가져오는데 실패했습니다: " + e.getMessage());
         }
     }
@@ -305,31 +328,6 @@ public class TimeAttackService {
                 goal.getCreatedAt(),
                 goal.getUpdatedAt()
         );
-    }
-
-    /**
-     * goalName과 displayName을 정규화하여 일관된 캐시 키 생성
-     */
-    private String generateCacheKeyForGoalName(String goalName, String languageCode) {
-        // goalName을 displayName으로 변환 (미리 정의된 목적의 경우)
-        String normalizedGoalName = normalizeGoalName(goalName);
-        return TimeAttackAIDto.CacheEntry.generateCacheKey(
-            normalizedGoalName.hashCode() + 0L, 
-            languageCode
-        );
-    }
-
-    /**
-     * goalName을 displayName으로 정규화
-     */
-    private String normalizeGoalName(String goalName) {
-        // 미리 정의된 목적인지 확인하고 nameKey로 변환
-        for (PredefinedTimeAttackGoals.Goal predefinedGoal : PredefinedTimeAttackGoals.getAllPredefinedGoals()) {
-            if (goalName.equals(predefinedGoal.getKoreanName()) || goalName.equals(predefinedGoal.getEnglishName())) {
-                return predefinedGoal.getNameKey(); // displayName을 nameKey로 변환
-            }
-        }
-        return goalName; // 사용자 커스텀 목적인 경우 그대로 반환
     }
 
     /**
@@ -459,5 +457,43 @@ public class TimeAttackService {
                         step.getStepOrder()
                 ))
                 .toList();
+    }
+    
+    // ==================== 성능 통계 메서드 ====================
+    
+    /**
+     * DB 세션 재사용 통계 조회
+     * 타임어택 추천 요청 시 DB vs AI 호출 비율 분석
+     */
+    public java.util.Map<String, Object> getDbSessionStatistics() {
+        long hits = dbSessionHits.get();
+        long misses = dbSessionMisses.get();
+        long total = hits + misses;
+        double hitRate = total > 0 ? (double) hits / total * 100.0 : 0.0;
+        double avgDbQueryTime = total > 0 ? (double) totalDbQueryTime.get() / total : 0.0; // total 기준으로 계산
+        
+        java.util.Map<String, Object> stats = new java.util.HashMap<>();
+        stats.put("dbSessionHits", hits);
+        stats.put("dbSessionMisses", misses);
+        stats.put("totalRequests", total);
+        stats.put("dbHitRate", String.format("%.1f%%", hitRate));
+        stats.put("avgDbQueryTimeMs", String.format("%.2f", avgDbQueryTime));
+        stats.put("totalDbQueryTimeMs", totalDbQueryTime.get());
+        
+        log.info(" DB 세션 통계 - 히트율: {}, 평균 DB 조회: {}ms",
+                String.format("%.1f%%", hitRate), 
+                String.format("%.2f", avgDbQueryTime));
+        
+        return stats;
+    }
+    
+    /**
+     * 통계 초기화 (테스트용)
+     */
+    public void resetDbSessionStatistics() {
+        dbSessionHits.set(0);
+        dbSessionMisses.set(0);
+        totalDbQueryTime.set(0);
+        log.info("DB 세션 통계 초기화 완료");
     }
 }
