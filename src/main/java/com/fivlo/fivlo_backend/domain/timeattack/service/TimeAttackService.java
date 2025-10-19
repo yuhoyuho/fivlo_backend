@@ -112,9 +112,10 @@ public class TimeAttackService {
                     .build();
         } else {
             // 사용자 추가 목적
+            String generatedKey = generateNameKey(request.getName());
             goal = TimeAttackGoal.builder()
                     .user(user)
-                    .nameKey(null)  //  커스텀 목적은 nameKey null
+                    .nameKey(generatedKey)  //  null 아님
                     .customName(request.getName())
                     .isPredefined(false)
                     .build();
@@ -127,6 +128,14 @@ public class TimeAttackService {
         return convertToGoalResponse(savedGoal);
     }
 
+    /**
+     * 공백 → 밑줄, 소문자 변환 (slugify)
+     */
+    private String generateNameKey(String name) {
+        return name.trim()
+                .toLowerCase()
+                .replaceAll("\\s+", "_");
+    }
     /**
      * 타임어택 목적 수정
      */
