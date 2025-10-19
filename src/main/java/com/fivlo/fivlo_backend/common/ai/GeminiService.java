@@ -55,26 +55,25 @@ public class GeminiService {
             String cachedResponse = getCachedResponse(cacheKey);
             if (cachedResponse != null) {
                 cacheHits.incrementAndGet();
-                logger.info("✅ Cache HIT - 즉시 응답 (캐시에서 반환)");
+                logger.info(" Cache HIT - 즉시 응답 (캐시에서 반환)");
                 return cachedResponse;
             }
             
             // 3. 캐시 미스 - 실제 AI 호출
             cacheMisses.incrementAndGet();
             long aiStartTime = System.currentTimeMillis();
-            logger.info("⏳ Cache MISS - AI 호출 시작...");
+            logger.info(" Cache MISS - AI 호출 시작...");
 
             // JSON만 생성하도록 모델에 강제 + 속도 최적화
             GenerateContentConfig cfg = GenerateContentConfig.builder()
                     .responseMimeType("application/json") // JSON만 달라!
                     .temperature(0.3f)  //  속도 개선 (기본값: 1.0)
-                    .maxOutputTokens(512)  //  응답 길이 제한
                     .build();
 
             // 공식 시그니처: (model, contents, config)
             GenerateContentResponse res = client.models.generateContent(model, prompt, cfg);
             String text = res.text();
-            
+
             long aiCallTime = System.currentTimeMillis() - aiStartTime;
             totalAiCallTime.addAndGet(aiCallTime);
             aiCallCount.incrementAndGet();
@@ -418,7 +417,7 @@ public class GeminiService {
         stats.put("avgAiResponseTimeMs", String.format("%.1f", avgAiResponseTime));
         stats.put("totalAiCallTimeMs", totalAiCallTime.get());
         
-        logger.info("📊 캐시 통계 - 히트율: {}, 평균 AI 응답: {}ms", 
+        logger.info(" 캐시 통계 - 히트율: {}, 평균 AI 응답: {}ms",
                     String.format("%.1f%%", hitRate), 
                     String.format("%.1f", avgAiResponseTime));
         
@@ -433,7 +432,7 @@ public class GeminiService {
         cacheMisses.set(0);
         totalAiCallTime.set(0);
         aiCallCount.set(0);
-        logger.info("📊 캐시 통계 초기화 완료");
+        logger.info(" 캐시 통계 초기화 완료");
     }
 
     /**
