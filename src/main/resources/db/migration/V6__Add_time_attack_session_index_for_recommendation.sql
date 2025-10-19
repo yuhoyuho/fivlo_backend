@@ -1,10 +1,10 @@
 -- V6: 타임어택 AI 추천 최적화를 위한 인덱스 추가
 -- 목적: 같은 목표+시간 조합의 최근 세션을 빠르게 조회하기 위함
 
--- TimeAttackSession 테이블에 복합 인덱스 생성
+-- time_attack_sessions 테이블에 복합 인덱스 생성
 -- (user_id, time_attack_goal_id, total_duration_in_seconds, created_at DESC)
-CREATE INDEX IF NOT EXISTS idx_time_attack_session_user_goal_duration_created
-ON time_attack_session(user_id, time_attack_goal_id, total_duration_in_seconds, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_time_attack_sessions_user_goal_duration_created
+ON time_attack_sessions(user_id, time_attack_goal_id, total_duration_in_seconds, created_at DESC);
 
 -- 설명:
 -- 이 인덱스는 TimeAttackService.recommendSteps()에서
