@@ -68,6 +68,7 @@ public class KakaoTokenVerifier implements OAuth2TokenVerifier {
                                     .socialProvider(socialProvider)
                                     .nickname(nickname)
                                     .status(User.Status.ACTIVE)
+                                    .alarmStatus(true) //알람 상태 추가(기본값 true 설정)
                                     .isPremium(true)
                                     .build();
                             return userRepository.save(newUser);

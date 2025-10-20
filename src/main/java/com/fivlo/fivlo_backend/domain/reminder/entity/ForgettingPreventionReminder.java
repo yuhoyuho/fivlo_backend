@@ -6,6 +6,7 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.locationtech.jts.geom.Point;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
@@ -13,10 +14,10 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Arrays;
+
 /**
  * 망각방지 알림 엔티티
  * 사용자가 설정한 개별 망각방지 알림 항목의 정보를 저장하는 테이블
@@ -58,6 +59,10 @@ public class ForgettingPreventionReminder {
     @Column(name = "location_longitude", precision = 11, scale = 8)
     private BigDecimal locationLongitude;
 
+    // Geometry Point column for PostGIS
+    @Column(name = "location", columnDefinition = "geometry(Point,4326)")
+    private Point location;
+
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -67,11 +72,12 @@ public class ForgettingPreventionReminder {
     private LocalDateTime updatedAt;
 
     // ==================== 생성자 ====================
-    
+
     @Builder
     public ForgettingPreventionReminder(User user, String title, LocalTime alarmTime, String repetitionDays,
-                                      String locationName, String locationAddress, 
-                                      BigDecimal locationLatitude, BigDecimal locationLongitude) {
+                                        String locationName, String locationAddress,
+                                        BigDecimal locationLatitude, BigDecimal locationLongitude,
+                                        Point location) {
         this.user = user;
         this.title = title;
         this.alarmTime = alarmTime;
@@ -80,10 +86,11 @@ public class ForgettingPreventionReminder {
         this.locationAddress = locationAddress;
         this.locationLatitude = locationLatitude;
         this.locationLongitude = locationLongitude;
+        this.location = location;
     }
 
     // ==================== 비즈니스 메서드 ====================
-    
+
     /**
      * 알림 기본 정보 수정
      */
@@ -102,8 +109,8 @@ public class ForgettingPreventionReminder {
     /**
      * 위치 정보 수정 (프리미엄 기능)
      */
-    public void updateLocationInfo(String locationName, String locationAddress, 
-                                 BigDecimal locationLatitude, BigDecimal locationLongitude) {
+    public void updateLocationInfo(String locationName, String locationAddress,
+                                   BigDecimal locationLatitude, BigDecimal locationLongitude) {
         this.locationName = locationName;
         this.locationAddress = locationAddress;
         this.locationLatitude = locationLatitude;
@@ -118,13 +125,21 @@ public class ForgettingPreventionReminder {
         this.locationAddress = null;
         this.locationLatitude = null;
         this.locationLongitude = null;
+        this.location = null;
+    }
+
+    /**
+     * PostGIS 포인트 설정
+     */
+    public void setLocation(Point location) {
+        this.location = location;
     }
 
     /**
      * 위치 설정 여부 확인
      */
     public boolean hasLocationSet() {
-        return locationLatitude != null && locationLongitude != null;
+        return (locationLatitude != null && locationLongitude != null) || location != null;
     }
 
     /**
@@ -141,7 +156,6 @@ public class ForgettingPreventionReminder {
     /**
      * 반복 요일 배열 반환
      */
-
     public List<String> getRepetitionDaysArray() {
         if (repetitionDays == null || repetitionDays.isEmpty()) {
             return Collections.emptyList();

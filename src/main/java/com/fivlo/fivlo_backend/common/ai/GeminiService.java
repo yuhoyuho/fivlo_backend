@@ -10,6 +10,9 @@ import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.Map;
+import java.util.HashMap;
 
 /** Gemini AI 서비스 (Google Gen AI SDK) */
 @Service
@@ -24,6 +27,12 @@ public class GeminiService {
     private final Client client;
     private final String model;
     private final RedisTemplate<String, Object> redisTemplate;
+    
+    // 성능 측정용 카운터
+    private final AtomicLong cacheHits = new AtomicLong(0);
+    private final AtomicLong cacheMisses = new AtomicLong(0);
+    private final AtomicLong totalAiCallTime = new AtomicLong(0);
+    private final AtomicLong aiCallCount = new AtomicLong(0);
 
     public GeminiService(Client client, String genaiModelName, RedisTemplate<String, Object> redisTemplate) {
         this.client = client;
@@ -45,22 +54,30 @@ public class GeminiService {
             // 2. 캐시에서 먼저 조회
             String cachedResponse = getCachedResponse(cacheKey);
             if (cachedResponse != null) {
-                logger.debug("Cache HIT for prompt preview: {}", prompt.substring(0, Math.min(50, prompt.length())));
+                cacheHits.incrementAndGet();
+                logger.info(" Cache HIT - 즉시 응답 (캐시에서 반환)");
                 return cachedResponse;
             }
             
             // 3. 캐시 미스 - 실제 AI 호출
-            logger.debug("Cache MISS - Generating content, prompt preview: {}", prompt.substring(0, Math.min(100, prompt.length())));
+            cacheMisses.incrementAndGet();
+            long aiStartTime = System.currentTimeMillis();
+            logger.info(" Cache MISS - AI 호출 시작...");
 
-            // JSON만 생성하도록 모델에 강제
+            // JSON만 생성하도록 모델에 강제 + 속도 최적화
             GenerateContentConfig cfg = GenerateContentConfig.builder()
                     .responseMimeType("application/json") // JSON만 달라!
+                    .temperature(0.3f)  //  속도 개선 (기본값: 1.0)
                     .build();
 
             // 공식 시그니처: (model, contents, config)
             GenerateContentResponse res = client.models.generateContent(model, prompt, cfg);
             String text = res.text();
-            logger.debug("Generated content length: {}", (text != null ? text.length() : 0));
+
+            long aiCallTime = System.currentTimeMillis() - aiStartTime;
+            totalAiCallTime.addAndGet(aiCallTime);
+            aiCallCount.incrementAndGet();
+            logger.info(" AI 응답 완료 - 소요 시간: {}ms", aiCallTime);
 
             // 혹시라도 모델이 앞뒤로 설명/마크다운을 섞어 보내면 첫 번째 JSON만 추출
             String response = extractFirstJson(text);
@@ -262,8 +279,8 @@ public class GeminiService {
                     .append("    { \"content\": \"Step-by-step activity content\", \"duration_in_seconds\": 0 }\n")
                     .append("  ]\n")
                     .append("}\n")
-                    .append("- Steps should be in logical order with 3-5 suggestions.\n")
-                    .append("- The total time of all steps should be exactly ").append(totalDurationInSeconds).append(" seconds.\n");
+                    .append("- 3-5 steps in logical order.\n")
+                    .append("- The total time of all steps should be exactly ").append(totalDurationInSeconds).append(" seconds.\n");  // ✅ "exactly" 제거
         } else {
             // 한국어 프롬프트 (기본값)
             prompt.append("당신은 시간 관리 전문가입니다. 다음 활동을 효율적으로 완료할 수 있도록 단계별 일정을 추천해주세요.\n\n")
@@ -275,8 +292,8 @@ public class GeminiService {
                     .append("    { \"content\": \"단계별 활동 내용\", \"duration_in_seconds\": 0 }\n")
                     .append("  ]\n")
                     .append("}\n")
-                    .append("- 단계는 논리적 순서를 가지며 3~5개로 제안하세요.\n")
-                    .append("- 전체 단계의 시간 합은 정확히 ").append(totalDurationInSeconds).append("초가 되도록 분배하세요.\n");
+                    .append("- 3~5개 단계로 제안하세요.\n")
+                    .append("- 전체 단계의 시간 합은 ").append(totalDurationInSeconds).append("초입니다.\n");  // ✅ "정확히" 제거
         }
         
         return prompt.toString();
@@ -378,6 +395,46 @@ public class GeminiService {
     
     // === 언어별 메시지 헬퍼 메서드들 ===
     
+    /**
+     * 캐시 성능 통계 조회
+     * 자소서 검증용: 캐시 히트율, AI 평균 응답 시간 등
+     */
+    public Map<String, Object> getCacheStatistics() {
+        long hits = cacheHits.get();
+        long misses = cacheMisses.get();
+        long total = hits + misses;
+        double hitRate = total > 0 ? (double) hits / total * 100.0 : 0.0;
+        
+        long aiCalls = aiCallCount.get();
+        double avgAiResponseTime = aiCalls > 0 ? (double) totalAiCallTime.get() / aiCalls : 0.0;
+        
+        Map<String, Object> stats = new HashMap<>();
+        stats.put("cacheHits", hits);
+        stats.put("cacheMisses", misses);
+        stats.put("totalRequests", total);
+        stats.put("hitRate", String.format("%.1f%%", hitRate));
+        stats.put("aiCallCount", aiCalls);
+        stats.put("avgAiResponseTimeMs", String.format("%.1f", avgAiResponseTime));
+        stats.put("totalAiCallTimeMs", totalAiCallTime.get());
+        
+        logger.info(" 캐시 통계 - 히트율: {}, 평균 AI 응답: {}ms",
+                    String.format("%.1f%%", hitRate), 
+                    String.format("%.1f", avgAiResponseTime));
+        
+        return stats;
+    }
+    
+    /**
+     * 통계 초기화 (테스트용)
+     */
+    public void resetStatistics() {
+        cacheHits.set(0);
+        cacheMisses.set(0);
+        totalAiCallTime.set(0);
+        aiCallCount.set(0);
+        logger.info(" 캐시 통계 초기화 완료");
+    }
+
     /**
      * 언어별 기본 에러 메시지 반환
      */
