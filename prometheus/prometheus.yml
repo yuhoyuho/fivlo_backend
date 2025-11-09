@@ -1,0 +1,14 @@
+# prometheus/prometheus.yml
+global:
+  scrape_interval: 15s # 15초마다 매트릭스를 수집합니다.
+
+scrape_configs:
+  # 'fivlo-app'이라는 작업(Job) 정의
+  - job_name: 'fivlo-app'
+
+    # Spring Boot Actuator가 매트릭스를 노출하는 경로
+    metrics_path: '/actuator/prometheus'
+
+    # Docker Compose 내부 네트워크에서 'fivlo-app' 서비스의 8080 포트를 찾습니다.
+    static_configs:
+      - targets: ['fivlo-app:8080']

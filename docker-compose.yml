@@ -33,6 +33,37 @@ services:
       timeout: 10s
       retries: 5
 
+  # Prometheus
+  prometheus:
+    image: prom/prometheus:v2.47.0
+    container_name: fivlo-prometheus
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    ports:
+      - "9090:9090"
+    depends_on:
+      fivlo-app:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Grafana
+  grafana:
+    image: grafana/grafana-oss:10.1.2
+    container_name: fivlo-grafana
+    volumes:
+      - grafana_data:/var/lib/grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      TZ: Asia/Seoul
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
   fivlo-app:
     build: .
     container_name: fivlo-backend
@@ -86,3 +117,5 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  prometheus_data:
+  grafana_data:

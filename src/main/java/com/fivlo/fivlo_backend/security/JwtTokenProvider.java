@@ -5,8 +5,7 @@ import com.fivlo.fivlo_backend.domain.user.auth.dto.TokenResponseDto;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 import lombok.RequiredArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Component;
 
@@ -15,9 +14,8 @@ import java.util.Date;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class JwtTokenProvider {
-
-    private static final Logger logger = LoggerFactory.getLogger(JwtTokenProvider.class);
 
     private final JwtConfig jwtConfig;
 
@@ -93,15 +91,15 @@ public class JwtTokenProvider {
             getParser().parseSignedClaims(token);
             return true;
         } catch (io.jsonwebtoken.security.SecurityException ex) {
-            logger.error("Invalid JWT signature: {}", ex.getMessage());
+            log.error("Invalid JWT signature: {}", ex.getMessage());
         } catch (MalformedJwtException ex) {
-            logger.error("Invalid JWT token: {}", ex.getMessage());
+            log.error("Invalid JWT token: {}", ex.getMessage());
         } catch (ExpiredJwtException ex) {
-            logger.error("Expired JWT token: {}", ex.getMessage());
+            log.error("Expired JWT token: {}", ex.getMessage());
         } catch (UnsupportedJwtException ex) {
-            logger.error("Unsupported JWT token: {}", ex.getMessage());
+            log.error("Unsupported JWT token: {}", ex.getMessage());
         } catch (IllegalArgumentException ex) {
-            logger.error("JWT claims string is empty: {}", ex.getMessage());
+            log.error("JWT claims string is empty: {}", ex.getMessage());
         }
         return false;
     }
@@ -112,7 +110,7 @@ public class JwtTokenProvider {
             Date expiration = getExpirationDateFromToken(token);
             return expiration.before(new Date());
         } catch (Exception e) {
-            logger.error("Error checking token expiration: {}", e.getMessage());
+            log.error("Error checking token expiration: {}", e.getMessage());
             return true;
         }
     }

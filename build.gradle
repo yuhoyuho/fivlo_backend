@@ -34,6 +34,8 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 	implementation 'org.flywaydb:flyway-core'
 	implementation 'org.flywaydb:flyway-database-postgresql'
+	// Prometheus
+	implementation 'io.micrometer:micrometer-registry-prometheus'
     // Google OAuth2 Token 검증용
     implementation 'com.google.auth:google-auth-library-oauth2-http:1.24.0'
 	// JWT 토큰 처리
