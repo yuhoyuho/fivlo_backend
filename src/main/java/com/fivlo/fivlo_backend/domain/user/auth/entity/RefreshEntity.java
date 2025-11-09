@@ -8,7 +8,7 @@ import org.springframework.data.redis.core.index.Indexed;
 
 @Getter
 @AllArgsConstructor
-@RedisHash(value = "refreshToken", timeToLive = 60 * 60 * 24 * 7 * 30 * 3) // 3개월 유지
+@RedisHash(value = "refreshToken", timeToLive = 60 * 60 * 24 * 30 * 3) // 3개월 유지
 public class RefreshEntity {
 
     @Id
