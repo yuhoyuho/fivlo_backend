@@ -30,7 +30,7 @@ public class BatchConfig {
     private final UserRepository userRepository;
     private final EntityManagerFactory entityManagerFactory;
 
-    private static final int CHUNK_SIZE = 100; // 한 번에 처리할 데이터 양 (사용자 수 늘어나면 수정)
+    private static final int CHUNK_SIZE = 1000; // 한 번에 처리할 데이터 양 (사용자 수 늘어나면 수정)
 
     @Bean
     public Job userManagementJob(JobRepository jobRepository, PlatformTransactionManager transactionManager) {
@@ -57,8 +57,8 @@ public class BatchConfig {
                 .name("deactivatedUserReader")
                 .entityManagerFactory(entityManagerFactory)
                 .pageSize(CHUNK_SIZE)
-                .queryString("select u from User u where u.status = 'DEACTIVATED' and u.deactivatedAt <= :sevenDaysAgo")
-                .parameterValues(Map.of("sevenDaysAgo", LocalDateTime.now().minusDays(7)))
+                .queryString("select u from User u where u.status = 'DEACTIVATED' and u.deactivatedAt <= :oneYearAgo")
+                .parameterValues(Map.of("oneYearAgo", LocalDateTime.now().minusYears(1)))
                 .build();
     }
 
@@ -93,8 +93,8 @@ public class BatchConfig {
                 .name("deletedUserReader")
                 .entityManagerFactory(entityManagerFactory)
                 .pageSize(CHUNK_SIZE)
-                .queryString("select u from User u where u.status = 'DELETED' and u.updatedAt <= :threeMonthsAgo")
-                .parameterValues(Map.of("threeMonthsAgo", LocalDateTime.now().minusMonths(3)))
+                .queryString("select u from User u where u.status = 'DELETED' and u.updatedAt <= :threeYearsAgo")
+                .parameterValues(Map.of("threeYearsAgo", LocalDateTime.now().minusYears(3)))
                 .build();
     }
 
