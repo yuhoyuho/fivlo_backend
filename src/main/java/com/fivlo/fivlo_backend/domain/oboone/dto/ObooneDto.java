@@ -7,49 +7,56 @@ import java.util.List;
 
 public class ObooneDto {
 
-    // API 36 : 상점 아이템 조회 응답
-    public record ShopItemResponse(
-            Long id,
-            String name,
-            Integer price,
-            @JsonProperty("image_url") String imageUrl,
-            @JsonProperty("item_type") ObooniItem.ItemType itemType
-    ) {}
+        // API 36 : 상점 아이템 조회 응답
+        public record ShopItemResponse(
+                        Long id,
+                        String name,
+                        Integer price,
+                        @JsonProperty("image_url") String imageUrl,
+                        @JsonProperty("item_type") ObooniItem.ItemType itemType) {
+        }
 
-    public record ShopItemListResponse(
-            List<ShopItemResponse> items
-    ) {}
+        public record ShopItemListResponse(
+                        List<ShopItemResponse> items) {
+        }
 
-    // API 36-2 : 아이템 생성 요청
-    public record addItemRequest(
-            String name,
-            Integer price,
-            @JsonProperty("image_url") String imageUrl,
-            @JsonProperty("item_type") ObooniItem.ItemType itemType
-    ) {}
+        // API 36-2 : 아이템 생성 요청
+        public record addItemRequest(
+                        String name,
+                        Integer price,
+                        @JsonProperty("image_url") String imageUrl,
+                        @JsonProperty("item_type") ObooniItem.ItemType itemType) {
+        }
 
-    // API 37 : 아이템 구매 요청
-    public record PurchaseRequest(
-            @JsonProperty("oboone_item_id") Long obooniItemId
-    ) {}
+        // API 37 : 아이템 구매 요청
+        public record PurchaseRequest(
+                        @JsonProperty("oboone_item_id") Long obooniItemId) {
+        }
 
-    // API 37 : 아이템 구매 응답
-    public record PurchaseResponse(
-            String message,
-            @JsonProperty("new_total_coins") Integer newTotalCoins
-    ) {}
+        // API 37 : 아이템 구매 응답
+        public record PurchaseResponse(
+                        String message,
+                        @JsonProperty("new_total_coins") Integer newTotalCoins) {
+        }
 
-    // API 38 : 사용자 옷장 아이템 목록 조회 응답 (개별 아이템)
-    public record ClosetItemResponse(
-            Long id, // 사용자 id
-            String name,
-            @JsonProperty("image_url") String imageUrl,
-            @JsonProperty("is_equipped") boolean isEquipped
-    ) {}
+        // API 38 : 사용자 옷장 아이템 목록 조회 응답 (개별 아이템)
+        public record ClosetItemResponse(
+                        Long id, // 사용자 id
+                        String name,
+                        @JsonProperty("image_url") String imageUrl,
+                        @JsonProperty("is_equipped") boolean isEquipped) {
+        }
 
-    // API 38 : 사용자 옷장 아이템 목록 최종 응답 (악세사리 포함 -> 현재는 없음)
-    public record ClosetResponse(
-            @JsonProperty("clothing_items") List<ClosetItemResponse> clothingItems,
-            @JsonProperty("accessory_items") List<ClosetItemResponse> accessoryItems
-    ) {}
+        // API 38 : 사용자 옷장 아이템 목록 최종 응답 (악세사리 포함 -> 현재는 없음)
+        public record ClosetResponse(
+                        @JsonProperty("clothing_items") List<ClosetItemResponse> clothingItems,
+                        @JsonProperty("accessory_items") List<ClosetItemResponse> accessoryItems) {
+        }
+
+        // API 35 : 오분이 메인 정보 조회 응답
+        public record ObooneResponse(
+                        Integer level,
+                        Integer exp,
+                        List<ClosetItemResponse> items) {
+        }
 }

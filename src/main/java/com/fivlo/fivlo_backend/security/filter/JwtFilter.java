@@ -13,7 +13,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
-
+import org.springframework.util.StringUtils;
 import java.io.IOException;
 
 @RequiredArgsConstructor
@@ -23,29 +23,37 @@ public class JwtFilter extends OncePerRequestFilter {
     private final CustomUserDetailsService userDetailsService;
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+            throws ServletException, IOException {
 
-        if(request.getRequestURI().equals(Routes.AUTH_REFRESH) || request.getRequestURI().equals("/")) {
+        if (request.getRequestURI().equals(Routes.AUTH_REFRESH) || request.getRequestURI().equals("/")) {
             filterChain.doFilter(request, response);
             return;
         }
 
         String authorization = request.getHeader("Authorization");
-        if(authorization == null) {
+        if (!StringUtils.hasText(authorization)) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        if(!authorization.startsWith("Bearer ")) {
+        if (!authorization.startsWith("Bearer ")) {
             throw new ServletException("Invalid token");
         }
 
         // 토큰 파싱
-        String token = authorization.split(" ")[1];
+        String token;
+        try {
+            token = authorization.split(" ")[1];
+        } catch (Exception e) {
+            filterChain.doFilter(request, response);
+            return;
+        }
 
         // 토큰 유효성 검증
-        if(!jwtTokenProvider.validateToken(token)) {
-            throw new ServletException("Invalid token");
+        if (!jwtTokenProvider.validateToken(token)) {
+            filterChain.doFilter(request, response);
+            return;
         }
 
         // 1. 토큰에서 사용자 id 추출

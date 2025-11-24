@@ -38,6 +38,29 @@ public class ObooneService {
         return new ObooneDto.ShopItemListResponse(items);
     }
 
+    // API 35 : 오분이 메인 정보 조회
+    @Transactional(readOnly = true)
+    public ObooneDto.ObooneResponse getOboone(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new NoSuchElementException("사용자를 찾을 수 없습니다."));
+
+        // 현재 착용 중인 아이템 조회
+        List<UserItem> equippedItems = userItemRepository.findByUserWithObooniItem(user).stream()
+                .filter(UserItem::getIsEquipped)
+                .toList();
+
+        List<ObooneDto.ClosetItemResponse> items = equippedItems.stream()
+                .map(userItem -> new ObooneDto.ClosetItemResponse(
+                        userItem.getId(),
+                        userItem.getObooniItem().getName(),
+                        userItem.getObooniItem().getImageUrl(),
+                        userItem.getIsEquipped()))
+                .toList();
+
+        // 레벨과 경험치는 현재 User 엔티티에 없으므로 기본값 반환 (추후 구현 필요)
+        return new ObooneDto.ObooneResponse(1, 0, items);
+    }
+
     // API 36-2 : 상점 아이템 추가
     @Transactional
     public Long addItem(ObooneDto.addItemRequest request) {
@@ -59,11 +82,11 @@ public class ObooneService {
         ObooniItem item = obooniItemRepository.findById(request.obooniItemId())
                 .orElseThrow(() -> new NoSuchElementException("해당 아이템을 찾을 수 없습니다."));
 
-        if(userItemRepository.existsByUserAndObooniItem(user, item)) {
+        if (userItemRepository.existsByUserAndObooniItem(user, item)) {
             throw new IllegalArgumentException("이미 가지고 있는 아이템입니다.");
         }
 
-        if(!user.useCoins(item.getPrice())) {
+        if (!user.useCoins(item.getPrice())) {
             throw new IllegalArgumentException("코인이 부족합니다.");
         }
 
@@ -96,8 +119,7 @@ public class ObooneService {
                     userItem.getId(),
                     userItem.getObooniItem().getName(),
                     userItem.getObooniItem().getImageUrl(),
-                    userItem.getIsEquipped()
-            );
+                    userItem.getIsEquipped());
 
             if (userItem.getObooniItem().isClothing()) {
                 clothingItems.add(dto);
@@ -118,7 +140,8 @@ public class ObooneService {
         UserItem itemToEquip = findUserItemAndVerifyOwnership(userId, itemId);
 
         // 같은 타입의 기존 착용 아이템이 있다면 해제 (모자를 쓰고 있다면 그걸 벗기고 새로운 모자 착용)
-        userItemRepository.findByUserAndObooniItem_ItemTypeAndIsEquipped(user, itemToEquip.getObooniItem().getItemType(), true)
+        userItemRepository
+                .findByUserAndObooniItem_ItemTypeAndIsEquipped(user, itemToEquip.getObooniItem().getItemType(), true)
                 .ifPresent(UserItem::unequip);
 
         itemToEquip.equip();

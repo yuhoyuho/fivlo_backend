@@ -15,7 +15,8 @@ public class ObooneController {
 
     private final ObooneService obooneService;
 
-    /** 오분이 상점 아이템 목록 조회
+    /**
+     * 오분이 상점 아이템 목록 조회
      * HTTP : GET
      * EndPoint : /api/v1/oboone/shop
      */
@@ -24,7 +25,18 @@ public class ObooneController {
         return ResponseEntity.ok(obooneService.getShopItem());
     }
 
-    /** 오분이 상점 아이템 추가
+    /**
+     * 오분이 메인 정보 조회
+     * HTTP : GET
+     * EndPoint : /api/v1/oboone
+     */
+    @GetMapping(Routes.OBOONE_BASE)
+    public ResponseEntity<ObooneDto.ObooneResponse> getOboone(@AuthenticationPrincipal CustomUserDetails userDetails) {
+        return ResponseEntity.ok(obooneService.getOboone(userDetails.getUser().getId()));
+    }
+
+    /**
+     * 오분이 상점 아이템 추가
      * HTTP : POST
      * EndPoint : /api/v1/oboone/item
      */
@@ -34,7 +46,8 @@ public class ObooneController {
         return ResponseEntity.status(201).body(obooneService.addItem(request));
     }
 
-    /** 오분이 아이템 구매
+    /**
+     * 오분이 아이템 구매
      * HTTP : POST
      * EndPoint : /api/v1/oboone/purchase
      */
@@ -46,7 +59,8 @@ public class ObooneController {
         return ResponseEntity.ok(obooneService.purchaseItem(userDetails.getUser().getId(), request));
     }
 
-    /** 사용자가 소유한 아이템 목록 조회
+    /**
+     * 사용자가 소유한 아이템 목록 조회
      * HTTP : GET
      * EndPoint : /api/v1/oboone/closet
      */
@@ -55,7 +69,8 @@ public class ObooneController {
         return ResponseEntity.ok(obooneService.getCloset(userDetails.getUser().getId()));
     }
 
-    /** 오분이 아이템 착용
+    /**
+     * 오분이 아이템 착용
      * HTTP : PATCH
      * EndPoint : /api/v1/oboone/equip/{userItemId}
      */
@@ -66,7 +81,8 @@ public class ObooneController {
         return ResponseEntity.ok(obooneService.equipItem(userDetails.getUser().getId(), userItemId));
     }
 
-    /** 오분이 아이템 착용 해제
+    /**
+     * 오분이 아이템 착용 해제
      * HTTP : PATCH
      * EndPoint : /api/v1/oboone/unequip/{userItemId}
      */

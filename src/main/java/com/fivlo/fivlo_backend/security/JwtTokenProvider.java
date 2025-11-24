@@ -20,7 +20,7 @@ public class JwtTokenProvider {
     private final JwtConfig jwtConfig;
 
     private SecretKey getSigningKey() {
-        return Keys.hmacShaKeyFor(jwtConfig.getJwtSecret().getBytes());
+        return Keys.hmacShaKeyFor(jwtConfig.getJwtSecret().getBytes(java.nio.charset.StandardCharsets.UTF_8));
     }
 
     // 공통 파서 (0.12.x)

@@ -22,6 +22,7 @@ public class JwtConfig {
 
     /**
      * JWT Secret Key 반환
+     * 
      * @return JWT 서명에 사용할 비밀키
      */
     public String getJwtSecret() {
@@ -30,6 +31,7 @@ public class JwtConfig {
 
     /**
      * JWT 토큰 만료시간 반환
+     * 
      * @return JWT 토큰 만료시간 (밀리초)
      */
     public Long getJwtExpiration() {
@@ -45,6 +47,7 @@ public class JwtConfig {
 
     /**
      * JWT 토큰 만료시간을 초 단위로 반환
+     * 
      * @return JWT 토큰 만료시간 (초)
      */
     public Long getJwtExpirationInSeconds() {
@@ -53,6 +56,7 @@ public class JwtConfig {
 
     /**
      * JWT 토큰 만료시간을 분 단위로 반환
+     * 
      * @return JWT 토큰 만료시간 (분)
      */
     public Long getJwtExpirationInMinutes() {
@@ -61,6 +65,7 @@ public class JwtConfig {
 
     /**
      * JWT 토큰 만료시간을 시간 단위로 반환
+     * 
      * @return JWT 토큰 만료시간 (시간)
      */
     public Long getJwtExpirationInHours() {
