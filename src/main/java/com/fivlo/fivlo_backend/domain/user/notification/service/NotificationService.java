@@ -40,7 +40,8 @@ public class NotificationService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new NoSuchElementException("사용자를 찾을 수 없습니다."));
 
-        if(!user.getIsPremium()) {
+        if(!user.getIsPremium() || !user.getAlarmStatus()) {
+            log.info("사용자 {}는 프리미엄이 아니거나 알림이 비활성화 되어 있어 위치 기반 알림을 보내지 않습니다.", userId);
             return;
         }
 
