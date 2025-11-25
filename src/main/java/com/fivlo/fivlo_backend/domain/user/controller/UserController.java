@@ -12,7 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-
+import org.springframework.http.HttpStatus;
 @RestController
 @RequiredArgsConstructor
 public class UserController {
@@ -36,11 +36,16 @@ public class UserController {
      * 엔드포인트: /api/v1/auth/signup
      */
     // 이메일 회원가입
+    // 이메일 회원가입
     @PostMapping(Routes.AUTH_SIGNUP)
-    public ResponseEntity<JoinUserResponse> signUp(
-            @Valid @RequestBody JoinUserRequest dto) {
-
-        return ResponseEntity.status(201).body(userService.join(dto));
+    public ResponseEntity<?> signUp(@Valid @RequestBody JoinUserRequest dto) { // 반환 타입을 <?>로 변경
+        try {
+            return ResponseEntity.status(201).body(userService.join(dto));
+        } catch (IllegalArgumentException e) {
+            // 중복 이메일 에러 발생 시 409 Conflict 반환
+            return ResponseEntity.status(org.springframework.http.HttpStatus.CONFLICT)
+                    .body(e.getMessage());
+        }
     }
 
     /**
