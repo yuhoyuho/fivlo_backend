@@ -52,21 +52,32 @@ public class TimeAttackController {
      * API 42: 타임어택 목적 추가
      * POST /api/v1/time-attack/goals
      */
+    // Controller
     @PostMapping("/goals")
     public ResponseEntity<Map<String, Object>> createGoal(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @Valid @RequestBody TimeAttackGoalDto.GoalRequest request) {
 
         Long userId = userDetails.getUser().getId();
-        log.debug("Creating time attack goal for user: {}, name: {}, isPredefined: {}", 
-                 userId, request.getName(), request.getIsPredefined());
-        
-        TimeAttackGoalDto.GoalResponse response = timeAttackService.createGoal(userId, request);
-        
-        return ResponseEntity.status(HttpStatus.CREATED).body(Map.of(
-            "message", "목적이 추가되었습니다.",
-            "goal_id", response.getId()
-        ));
+
+        try {
+            // 서비스 호출
+            TimeAttackGoalDto.GoalResponse response = timeAttackService.createGoal(userId, request);
+
+            return ResponseEntity.status(HttpStatus.CREATED).body(Map.of(
+                    "message", "목적이 추가되었습니다.",
+                    "goal_id", response.getId()
+            ));
+
+        } catch (IllegalArgumentException e) {
+            // 서비스에서 던진 "이미 동일한 이름... " 에러를 여기서 잡음(Catch)
+            log.warn("중복 생성 시도: {}", e.getMessage());
+
+            // 프론트엔드에 400 Bad Request와 에러 메시지를 보냄
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
+                    "message", e.getMessage() // "이미 동일한 이름의 목적이 존재합니다..."
+            ));
+        }
     }
 
     /**
