@@ -18,9 +18,9 @@ public class PredefinedTimeAttackGoals {
     @Getter
     @AllArgsConstructor
     public enum Goal {
-        OUTING_PREP("timeAttack.goal.outingPrep", "외출 준비", "Get ready to go out"),
-        MEAL_PREP("timeAttack.goal.mealPrep", "식사 준비", "Preparation of a meal"),
-        HOUSE_CLEANING("timeAttack.goal.houseCleaning", "집 정리하기", "Cleaning up the house");
+        OUTING_PREP("time_attack.goal.outingPrep", "외출 준비하기", "Get ready to go out"),
+        MEAL_PREP("time_attack.goal.mealPrep", "식사 준비하기", "Preparation of a meal"),
+        HOUSE_CLEANING("time_attack.goal.houseCleaning", "집 정리하기", "Cleaning up the house");
 
         /** i18n 키 */
         private final String nameKey;
