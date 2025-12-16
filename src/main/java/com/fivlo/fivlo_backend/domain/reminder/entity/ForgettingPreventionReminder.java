@@ -44,7 +44,7 @@ public class ForgettingPreventionReminder {
     @Column(name = "alarm_time", nullable = false)
     private LocalTime alarmTime;
 
-    @Column(name = "repetition_days", length = 7, nullable = false)
+    @Column(name = "repetition_days", length = 50, nullable = false)
     private String repetitionDays;
 
     @Column(name = "location_name", length = 255)
@@ -75,9 +75,9 @@ public class ForgettingPreventionReminder {
 
     @Builder
     public ForgettingPreventionReminder(User user, String title, LocalTime alarmTime, String repetitionDays,
-                                        String locationName, String locationAddress,
-                                        BigDecimal locationLatitude, BigDecimal locationLongitude,
-                                        Point location) {
+            String locationName, String locationAddress,
+            BigDecimal locationLatitude, BigDecimal locationLongitude,
+            Point location) {
         this.user = user;
         this.title = title;
         this.alarmTime = alarmTime;
@@ -110,7 +110,7 @@ public class ForgettingPreventionReminder {
      * 위치 정보 수정 (프리미엄 기능)
      */
     public void updateLocationInfo(String locationName, String locationAddress,
-                                   BigDecimal locationLatitude, BigDecimal locationLongitude) {
+            BigDecimal locationLatitude, BigDecimal locationLongitude) {
         this.locationName = locationName;
         this.locationAddress = locationAddress;
         this.locationLatitude = locationLatitude;
@@ -144,6 +144,7 @@ public class ForgettingPreventionReminder {
 
     /**
      * 특정 요일에 활성화되는지 확인
+     * 
      * @param dayOfWeek 요일 (MON, TUE, WED, THU, FRI, SAT, SUN)
      */
     public boolean isActiveOnDay(String dayOfWeek) {

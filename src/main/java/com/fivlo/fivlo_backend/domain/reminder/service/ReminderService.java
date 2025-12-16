@@ -46,8 +46,9 @@ public class ReminderService {
                 .repetitionDays(repetitionDays)
                 .build();
 
-        if(user.getIsPremium() && dto.locationName() != null) {
-            reminder.updateLocationInfo(dto.locationName(), dto.locationAddress(), dto.locationLatitude(), dto.locationLongitude());
+        if (user.getIsPremium() && dto.locationName() != null) {
+            reminder.updateLocationInfo(dto.locationName(), dto.locationAddress(), dto.locationLatitude(),
+                    dto.locationLongitude());
             // 좌표가 있는 경우 geometry 포인트도 설정
             var point = geoService.createPoint(dto.locationLongitude(), dto.locationLatitude());
             reminder.setLocation(point);
@@ -64,16 +65,28 @@ public class ReminderService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new NoSuchElementException("사용자를 찾을 수 없습니다."));
 
-        List<ReminderDto.GetReminderResponse> reminderResponses = reminderRepository.findByUser(user)
-                .stream()
+        List<ForgettingPreventionReminder> reminders = reminderRepository.findByUser(user);
+
+        // 오늘 날짜의 완료 기록 조회
+        LocalDate today = LocalDate.now();
+        List<DailyReminderCompletion> completions = reminderCompletionRepository
+                .findByReminderInAndCompletionDate(reminders, today);
+
+        // 완료된 알림 ID 집합 생성
+        List<Long> completedReminderIds = completions.stream()
+                .filter(DailyReminderCompletion::isCompletedToday)
+                .map(c -> c.getReminder().getId())
+                .toList();
+
+        List<ReminderDto.GetReminderResponse> reminderResponses = reminders.stream()
                 .map(r -> new ReminderDto.GetReminderResponse(
                         r.getId(),
                         r.getTitle(),
                         r.getAlarmTime(),
                         r.getRepetitionDaysArray(),
                         r.getLocationName(),
-                        r.hasLocationSet()
-                ))
+                        r.hasLocationSet(),
+                        completedReminderIds.contains(r.getId())))
                 .toList();
 
         return new ReminderDto.GetReminderListResponse(reminderResponses);
@@ -90,12 +103,12 @@ public class ReminderService {
         // 알림 조회
         ForgettingPreventionReminder reminder = findReminderAndCheckedByUserId(userId, reminderId);
 
-        String repetitionDays = (dto.repetitionDays() != null) ?
-                convertDaysListToString(dto.repetitionDays()) : null;
+        String repetitionDays = (dto.repetitionDays() != null) ? convertDaysListToString(dto.repetitionDays()) : null;
         reminder.updateBasicInfo(dto.title(), dto.alarmTime(), repetitionDays);
 
-        if(user.getIsPremium() && dto.locationName() != null) {
-            reminder.updateLocationInfo(dto.locationName(), dto.locationAddress(), dto.locationLatitude(), dto.locationLongitude());
+        if (user.getIsPremium() && dto.locationName() != null) {
+            reminder.updateLocationInfo(dto.locationName(), dto.locationAddress(), dto.locationLatitude(),
+                    dto.locationLongitude());
             // 좌표가 있는 경우 geometry 포인트도 설정
             var point = geoService.createPoint(dto.locationLongitude(), dto.locationLatitude());
             reminder.setLocation(point);
@@ -123,7 +136,8 @@ public class ReminderService {
         // 알림 조회
         ForgettingPreventionReminder reminder = findReminderAndCheckedByUserId(userId, reminderId);
 
-        DailyReminderCompletion completion = reminderCompletionRepository.findByReminderAndCompletionDate(reminder, dto.date())
+        DailyReminderCompletion completion = reminderCompletionRepository
+                .findByReminderAndCompletionDate(reminder, dto.date())
                 .orElseGet(() -> DailyReminderCompletion.builder()
                         .reminder(reminder)
                         .completionDate(dto.date())
@@ -152,12 +166,14 @@ public class ReminderService {
         List<ForgettingPreventionReminder> activeReminders = allReminders.stream()
                 .filter(r -> r.isActiveOnDay(dayOfWeek))
                 .toList();
-        long completedCount = reminderCompletionRepository.countByReminderUserAndCompletionDateAndIsCompleted(user, date, true);
+        long completedCount = reminderCompletionRepository.countByReminderUserAndCompletionDateAndIsCompleted(user,
+                date, true);
 
         boolean allCompleted = !activeReminders.isEmpty() && activeReminders.size() == completedCount;
         boolean coinAwarded = false;
 
-        if(allCompleted && user.getIsPremium() && (user.getLastReminderCoinDate() == null || user.getLastReminderCoinDate().isBefore(date) )) {
+        if (allCompleted && user.getIsPremium()
+                && (user.getLastReminderCoinDate() == null || user.getLastReminderCoinDate().isBefore(date))) {
             user.addCoins(1);
             user.updateLastReminderCoinDate(date);
             coinTransactionService.logTransaction(user, 1);
