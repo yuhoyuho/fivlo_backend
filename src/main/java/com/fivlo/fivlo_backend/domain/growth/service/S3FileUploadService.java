@@ -40,13 +40,13 @@ public class S3FileUploadService {
      * 성장앨범 이미지 업로드용 PreSigned URL 생성
      */
     public PresignedUrlResponse generatePresignedUrl(PresignedUrlRequest request) {
-        log.info("PreSigned URL 생성 시작 - fileName: {}, contentType: {}", 
+        log.info("PreSigned URL 생성 시작 - fileName: {}, contentType: {}",
                 request.getFileName(), request.getContentType());
 
         try {
             // S3 객체 키 생성 (UUID + 원본 파일 확장자)
             String s3ObjectKey = generateS3ObjectKey(request.getFileName());
-            
+
             // S3 Put 요청 생성
             PutObjectRequest putObjectRequest = PutObjectRequest.builder()
                     .bucket(bucketName)
@@ -61,13 +61,13 @@ public class S3FileUploadService {
                     .build();
 
             PresignedPutObjectRequest presignedRequest = s3Presigner.presignPutObject(presignRequest);
-            
+
             // 응답 데이터 생성
             String presignedUrl = presignedRequest.url().toString();
             String s3ObjectUrl = generateS3ObjectUrl(s3ObjectKey);
             LocalDateTime expirationTime = LocalDateTime.now().plus(PRESIGNED_URL_DURATION);
 
-            log.info("PreSigned URL 생성 완료 - s3ObjectKey: {}, expirationTime: {}", 
+            log.info("PreSigned URL 생성 완료 - s3ObjectKey: {}, expirationTime: {}",
                     s3ObjectKey, expirationTime);
 
             return PresignedUrlResponse.builder()
@@ -106,7 +106,56 @@ public class S3FileUploadService {
      * S3 객체 URL 생성
      */
     private String generateS3ObjectUrl(String s3ObjectKey) {
-        return String.format("https://%s.s3.%s.amazonaws.com/%s", 
+        return String.format("https://%s.s3.%s.amazonaws.com/%s",
                 bucketName, region, s3ObjectKey);
+    }
+
+    /**
+     * 조회용 PreSigned URL 생성 (GET)
+     */
+    public String generatePresignedGetUrl(String s3ObjectUrl) {
+        try {
+            // URL에서 Key 추출
+            String s3ObjectKey = extractKeyFromUrl(s3ObjectUrl);
+            if (s3ObjectKey == null) {
+                return s3ObjectUrl; // Key 추출 실패 시 원본 반환
+            }
+
+            // GET 요청 생성
+            software.amazon.awssdk.services.s3.model.GetObjectRequest getObjectRequest = software.amazon.awssdk.services.s3.model.GetObjectRequest
+                    .builder()
+                    .bucket(bucketName)
+                    .key(s3ObjectKey)
+                    .build();
+
+            // PreSigned URL 생성
+            software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest presignRequest = software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest
+                    .builder()
+                    .signatureDuration(PRESIGNED_URL_DURATION)
+                    .getObjectRequest(getObjectRequest)
+                    .build();
+
+            software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest presignedRequest = s3Presigner
+                    .presignGetObject(presignRequest);
+
+            return presignedRequest.url().toString();
+
+        } catch (Exception e) {
+            log.warn("PreSigned GET URL 생성 실패 - url: {}", s3ObjectUrl, e);
+            return s3ObjectUrl; // 실패 시 원본 반환
+        }
+    }
+
+    private String extractKeyFromUrl(String url) {
+        try {
+            // https://{bucket}.s3.{region}.amazonaws.com/{key} 형식 가정
+            String domain = String.format("https://%s.s3.%s.amazonaws.com/", bucketName, region);
+            if (url.startsWith(domain)) {
+                return url.substring(domain.length());
+            }
+            return null;
+        } catch (Exception e) {
+            return null;
+        }
     }
 }
