@@ -73,7 +73,7 @@ public class ConcentrationGoalAnalysisResponse {
      */
     public static String determineObooniImageType(int durationInSeconds) {
         int durationInMinutes = durationInSeconds / 60;
-        
+
         if (durationInMinutes == 0) {
             return "GRAY_SAD";        // 0분: 회색 슬픔 오분이
         } else if (durationInMinutes < 60) {
@@ -83,5 +83,31 @@ public class ConcentrationGoalAnalysisResponse {
         } else {
             return "RED_HAPPY";       // 2시간+: 빨간색 기쁨 오분이
         }
+    }
+
+    /**
+     * D-Day 목표 목록 조회 응답 DTO
+     */
+    @Getter
+    @Builder
+    public static class ConcentrationGoalListResponse {
+        private List<ConcentrationGoalItem> goals;
+    }
+
+    /**
+     * D-Day 목표 목록 아이템 DTO
+     */
+    @Getter
+    @Builder
+    public static class ConcentrationGoalItem {
+        private Long id;                   // 목표 ID
+        private String name;               // 목표 이름
+        private String startDate;          // 시작일 (YYYY-MM-DD)
+        private String endDate;            // 종료일 (YYYY-MM-DD)
+        private Long totalDays;            // 총 기간 (일)
+        private Long elapsedDays;          // 경과 일수
+        private Long remainingDays;        // 남은 일수
+        private Boolean isActive;          // 활성 상태 (현재 진행 중인지)
+        private Boolean isCompleted;       // 완료 상태 (종료일이 지났는지)
     }
 }

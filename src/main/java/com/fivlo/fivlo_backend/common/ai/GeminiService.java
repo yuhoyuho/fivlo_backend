@@ -174,17 +174,32 @@ public class GeminiService {
      */
     private String buildTaskRecommendationPrompt(String goalContent, String goalType, String startDate, String endDate, String languageCode) {
         StringBuilder prompt = new StringBuilder();
-        
+
+        // Task 개수 계산 (DEFINITE 타입일 경우 기간에 따라 조정)
+        int taskCount = 5; // 기본값
+        if ("DEFINITE".equalsIgnoreCase(goalType) && startDate != null && endDate != null) {
+            try {
+                long daysBetween = java.time.temporal.ChronoUnit.DAYS.between(
+                    java.time.LocalDate.parse(startDate),
+                    java.time.LocalDate.parse(endDate)
+                );
+                // 일주일당 1개 Task, 최소 3개, 최대 10개
+                taskCount = Math.max(3, Math.min(10, (int)(daysBetween / 7)));
+            } catch (Exception e) {
+                taskCount = 5; // 파싱 실패 시 기본값
+            }
+        }
+
         if ("en".equalsIgnoreCase(languageCode)) {
             // 영어 프롬프트
             prompt.append("You are a planning design expert. Please provide specific steps to complete the following goal.\\n\\n")
                     .append("- Goal: ").append(goalContent).append("\\n")
                     .append("- Goal Type: ").append(goalType).append("\\n");
-        
+
             if (startDate != null && endDate != null) {
                 prompt.append("- Period: ").append(startDate).append(" ~ ").append(endDate).append("\\n");
             }
-        
+
             prompt.append("Response must be provided only in the JSON format below, without any other explanations or markdown.\\n")
                     .append("{\\n")
                     .append("  \\\"recommended_tasks\\\": [\\n")
@@ -196,30 +211,31 @@ public class GeminiService {
                     .append("    }\\n")
                     .append("  ]\\n")
                     .append("}\\n");
-        
-            prompt.append("- Generate 3 to 5 specific and actionable tasks to achieve the 'goal'.\\n");
-        
+
+            prompt.append("- Generate exactly ").append(taskCount).append(" specific and actionable tasks to achieve the 'goal'.\\n");
+
             if ("DEFINITE".equalsIgnoreCase(goalType)) {
-                prompt.append("- Each task's 'due_date' should be logically distributed between '").append(startDate).append("' and '").append(endDate).append("'.\\n");
+                prompt.append("- The first task's 'due_date' must be '").append(startDate).append("' and the last task's 'due_date' must be '").append(endDate).append("'.\\n");
+                prompt.append("- The remaining tasks' 'due_date' should be evenly distributed between the start date and end date.\\n");
                 prompt.append("- All tasks' 'end_date' must be set to '").append(endDate).append("'.\\n");
             } else { // INDEFINITE or null
                 prompt.append("- Suggest about 3-5 tasks per week that can be repeated weekly.\\n");
                 prompt.append("- All tasks' 'end_date' must be set to null.\\n");
             }
-        
+
             prompt.append("- All tasks' 'repeat_type' should be fixed to 'DAILY'.\\n");
             prompt.append("- Content should be as specific as possible within 20 characters.");
-            
+
         } else {
             // 한국어 프롬프트 (기본값)
             prompt.append("당신은 계획 설계 전문가입니다. 다음 목표를 완료할 수 있도록 구체적인 단계를 제시해주세요.\\n\\n")
                     .append("- 목표: ").append(goalContent).append("\\n")
                     .append("- 목표 유형: ").append(goalType).append("\\n");
-            
+
             if (startDate != null && endDate != null) {
                 prompt.append("- 기간: ").append(startDate).append(" ~ ").append(endDate).append("\\n");
             }
-            
+
             prompt.append("응답은 반드시 아래 JSON 형식으로만, 다른 설명이나 마크다운 없이 제공해야 합니다.\\n")
                     .append("{\\n")
                     .append("  \\\"recommended_tasks\\\": [\\n")
@@ -231,17 +247,18 @@ public class GeminiService {
                     .append("    }\\n")
                     .append("  ]\\n")
                     .append("}\\n");
-            
-            prompt.append("- '목표'를 달성하기 위한 구체적이고 실천 가능한 Task를 3개에서 5개 사이로 생성하세요.\\n");
-            
+
+            prompt.append("- '목표'를 달성하기 위한 구체적이고 실천 가능한 Task를 정확히 ").append(taskCount).append("개 생성하세요.\\n");
+
             if ("DEFINITE".equalsIgnoreCase(goalType)) {
-                prompt.append("- 각 Task의 'due_date'는 '").append(startDate).append("'와 '").append(endDate).append("' 사이에서 논리적으로 분배되어야 합니다.\\n");
+                prompt.append("- 첫 번째 Task의 'due_date'는 반드시 '").append(startDate).append("'로, 마지막 Task의 'due_date'는 반드시 '").append(endDate).append("'로 설정하세요.\\n");
+                prompt.append("- 나머지 Task들의 'due_date'는 시작일과 종료일 사이에 균등한 간격으로 분배하세요.\\n");
                 prompt.append("- 모든 Task의 'end_date'는 반드시 '").append(endDate).append("'로 설정하세요.\\n");
             } else { // INDEFINITE 또는 null인 경우
                 prompt.append("- 단계는 매주 반복할 수 있는 정도로 1주에 3~5개 정도로 제안하세요.\\n");
                 prompt.append("- 모든 Task의 'end_date'는 반드시 null로 설정하세요.\\n");
             }
-            
+
             prompt.append("- 모든 Task의 'repeat_type'은 'DAILY'로 고정하세요.\\n");
             prompt.append("- 'content'에 들어갈 내용은 최대 10자 이내로 최대한 구체적으로 설정하세요.");
             }

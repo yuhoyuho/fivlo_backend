@@ -120,6 +120,27 @@ public class FocusAnalysisController {
     }
 
     /**
+     * API 신규: D-Day 목표 목록 조회 (프리미엄 전용)
+     * GET /api/v1/analysis/goals
+     * 사용자의 모든 D-Day 목표 목록을 조회합니다.
+     */
+    @GetMapping(Routes.ANALYSIS_GOALS)
+    public ResponseEntity<ConcentrationGoalAnalysisResponse.ConcentrationGoalListResponse> getConcentrationGoals(
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+
+        log.info("D-Day 목표 목록 조회 요청 - userId: {}", userDetails.getUser().getId());
+
+        User user = userDetails.getUser();
+        ConcentrationGoalAnalysisResponse.ConcentrationGoalListResponse response =
+                focusAnalysisService.getConcentrationGoals(user);
+
+        log.info("D-Day 목표 목록 조회 응답 완료 - userId: {}, 목표 개수: {}",
+                userDetails.getUser().getId(), response.getGoals().size());
+
+        return ResponseEntity.ok(response);
+    }
+
+    /**
      * API 34: D-Day 목표 설정 (프리미엄 전용)
      * POST /api/v1/analysis/goals
      * D-Day 분석을 위한 새로운 목표를 설정합니다.
@@ -129,14 +150,14 @@ public class FocusAnalysisController {
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @Valid @RequestBody ConcentrationGoalRequest request) {
 
-        log.info("D-Day 목표 설정 요청 - userId: {}, goalName: {}", 
+        log.info("D-Day 목표 설정 요청 - userId: {}, goalName: {}",
                 userDetails.getUser().getId(), request.name());
 
         User user = userDetails.getUser();
-        ConcentrationGoalAnalysisResponse.ConcentrationGoalCreateResponse response = 
+        ConcentrationGoalAnalysisResponse.ConcentrationGoalCreateResponse response =
                 focusAnalysisService.createConcentrationGoal(user, request);
 
-        log.info("D-Day 목표 설정 응답 완료 - userId: {}, goalId: {}", 
+        log.info("D-Day 목표 설정 응답 완료 - userId: {}, goalId: {}",
                 userDetails.getUser().getId(), response.getId());
 
         return ResponseEntity.ok(response);

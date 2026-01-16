@@ -852,6 +852,43 @@ public class FocusAnalysisService {
     }
 
     /**
+     * API 신규: D-Day 목표 목록 조회 (프리미엄 전용)
+     * 사용자의 모든 D-Day 목표 목록을 조회합니다.
+     */
+    public ConcentrationGoalAnalysisResponse.ConcentrationGoalListResponse getConcentrationGoals(User user) {
+        log.info("D-Day 목표 목록 조회 시작 - userId: {}", user.getId());
+
+        // 프리미엄 사용자 확인
+        if (!user.getIsPremium()) {
+            throw new IllegalArgumentException("D-Day 목표는 프리미엄 사용자만 이용 가능합니다.");
+        }
+
+        // 사용자의 모든 목표 조회 (최신순)
+        List<ConcentrationGoal> goals = concentrationGoalRepository.findByUserOrderByCreatedAtDesc(user);
+
+        // DTO 변환
+        List<ConcentrationGoalAnalysisResponse.ConcentrationGoalItem> goalItems = goals.stream()
+                .map(goal -> ConcentrationGoalAnalysisResponse.ConcentrationGoalItem.builder()
+                        .id(goal.getId())
+                        .name(goal.getName())
+                        .startDate(goal.getStartDate().format(DATE_FORMATTER))
+                        .endDate(goal.getEndDate().format(DATE_FORMATTER))
+                        .totalDays(goal.getTotalDays())
+                        .elapsedDays(goal.getElapsedDays())
+                        .remainingDays(goal.getRemainingDays())
+                        .isActive(goal.isActive())
+                        .isCompleted(goal.isCompleted())
+                        .build())
+                .collect(Collectors.toList());
+
+        log.info("D-Day 목표 목록 조회 완료 - userId: {}, 목표 개수: {}", user.getId(), goalItems.size());
+
+        return ConcentrationGoalAnalysisResponse.ConcentrationGoalListResponse.builder()
+                .goals(goalItems)
+                .build();
+    }
+
+    /**
      * API 35: D-Day 목표 분석 조회 (프리미엄 전용)
      * D-Day 목표에 대한 기간 동안의 집중도 분석 데이터를 조회합니다.
      */
