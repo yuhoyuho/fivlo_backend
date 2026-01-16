@@ -71,6 +71,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/auth/reissue").permitAll()
                         .requestMatchers("/actuator/**").permitAll()
                         .requestMatchers("/error").permitAll()
+                        // 이미지 경로 허용 (오분이 상점 이미지 등)
+                        .requestMatchers("/images/**").permitAll()
+                        .requestMatchers("/api/v1/images/**").permitAll()
 
                         // 나머지 모든 요청은 인증 필요
                         .anyRequest().authenticated());
