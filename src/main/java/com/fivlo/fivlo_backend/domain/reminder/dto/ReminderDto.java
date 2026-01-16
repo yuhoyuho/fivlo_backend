@@ -26,6 +26,9 @@ public class ReminderDto {
                         @JsonProperty("alarm_time") LocalTime alarmTime,
                         @JsonProperty("repetition_days") List<String> repetitionDays,
                         @JsonProperty("location_name") String locationName,
+                        @JsonProperty("location_address") String locationAddress,
+                        @JsonProperty("location_latitude") BigDecimal locationLatitude,
+                        @JsonProperty("location_longitude") BigDecimal locationLongitude,
                         @JsonProperty("is_location_set") Boolean isLocationSet,
                         @JsonProperty("is_completed") Boolean isCompleted) {
         }

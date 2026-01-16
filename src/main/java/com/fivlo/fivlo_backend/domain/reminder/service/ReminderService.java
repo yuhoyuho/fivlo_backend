@@ -85,6 +85,9 @@ public class ReminderService {
                         r.getAlarmTime(),
                         r.getRepetitionDaysArray(),
                         r.getLocationName(),
+                        r.getLocationAddress(),
+                        r.getLocationLatitude(),
+                        r.getLocationLongitude(),
                         r.hasLocationSet(),
                         completedReminderIds.contains(r.getId())))
                 .toList();
