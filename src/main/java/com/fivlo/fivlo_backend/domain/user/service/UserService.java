@@ -219,7 +219,7 @@ public class UserService {
         RefreshEntity redisToken = new RefreshEntity(user.getId(), refresh);
         refreshRepository.save(redisToken);
 
-        return new SocialLoginResponse(isNewUser, access, refresh, user.getId(), user.getOnboardingType());
+        return new SocialLoginResponse(isNewUser, access, refresh, user.getId(), user.getOnboardingType(), user.getIsPremium());
     }
 
     /**

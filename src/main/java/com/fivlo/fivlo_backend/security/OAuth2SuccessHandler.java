@@ -122,7 +122,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
                 .socialProvider(socialProvider)
                 .nickname(nickname != null ? nickname : "사용자")
                 .profileImageUrl(profileImageUrl)
-                .isPremium(false)
+                .isPremium(true)
                 .totalCoins(0)
                 .build();
 

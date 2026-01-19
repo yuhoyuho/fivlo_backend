@@ -42,8 +42,11 @@ public class LoginSuccessHandler implements AuthenticationSuccessHandler {
         RefreshEntity redisToken = new RefreshEntity(user.getId(), refresh);
         refreshRepository.save(redisToken);
 
+        // 신규 사용자 여부 확인 (온보딩 완료하지 않은 경우)
+        boolean isNewUser = user.getOnboardingType() == null;
+
         // 응답 dto 생성
-        LoginResponse dto = new LoginResponse(access, refresh, user.getId(), user.getOnboardingType(), user.getIsPremium());
+        LoginResponse dto = new LoginResponse(isNewUser, access, refresh, user.getId(), user.getOnboardingType(), user.getIsPremium());
 
         // HTTP 응답 설정 및 JSON 변환
         response.setStatus(HttpServletResponse.SC_OK); // 200 OK

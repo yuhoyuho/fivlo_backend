@@ -6,5 +6,6 @@ public record SocialLoginResponse(Boolean isNewUser,
                                   String accessToken,
                                   String refreshToken,
                                   Long userId,
-                                  User.OnboardingType onboardingType) {
+                                  User.OnboardingType onboardingType,
+                                  Boolean isPremium) {
 }
