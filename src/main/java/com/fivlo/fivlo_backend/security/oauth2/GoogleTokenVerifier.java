@@ -21,7 +21,7 @@ public class GoogleTokenVerifier implements OAuth2TokenVerifier {
 
     private final UserRepository userRepository;
 
-    public GoogleTokenVerifier(UserRepository userRepository, @Value("${spring.security.oauth2.client.registration.google.client-id}") String allowedClientIds) {
+    public GoogleTokenVerifier(UserRepository userRepository, @Value("${google.allowed-client-ids}") String allowedClientIds) {
         this.userRepository = userRepository;
         this.allowedClientIds = Arrays.asList(allowedClientIds.split(","));
     }
@@ -50,7 +50,8 @@ public class GoogleTokenVerifier implements OAuth2TokenVerifier {
             return findOrCreateUser(email, socialId, nickname);
 
         } catch(Exception e) {
-            throw new RuntimeException("Google 토큰 처리 중 문제가 발생했습니다.");
+            e.printStackTrace();
+            throw new RuntimeException("Google 토큰 처리 실패: " + e.getMessage());
         }
     }
 
