@@ -181,7 +181,7 @@ public class FocusAnalysisController {
                 focusAnalysisService.getConcentrationGoalAnalysis(user, goalId);
 
         log.info("D-Day 목표 분석 응답 완료 - userId: {}, goalId: {}, 총 집중시간: {}초", 
-                userDetails.getUser().getId(), goalId, response.getGoalInfo().getTotalFocusTime());
+                userDetails.getUser().getId(), goalId, response.getGoalInfo().getActualFocusTime());
 
         return ResponseEntity.ok(response);
     }

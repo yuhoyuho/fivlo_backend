@@ -42,8 +42,7 @@ public class ConcentrationGoal {
     private LocalDate targetDate;
 
     @Column(name = "target_focus_time_in_seconds", nullable = false)
-    @Builder.Default
-    private Integer targetFocusTimeInSeconds = 7200; // 기본값: 2시간
+    private Integer targetFocusTimeInSeconds; // 기본값: 2시간
 
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
