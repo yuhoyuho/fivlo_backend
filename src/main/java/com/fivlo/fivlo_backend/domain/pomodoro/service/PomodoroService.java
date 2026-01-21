@@ -1,8 +1,10 @@
 package com.fivlo.fivlo_backend.domain.pomodoro.service;
 
 import com.fivlo.fivlo_backend.domain.pomodoro.dto.*;
+import com.fivlo.fivlo_backend.domain.pomodoro.entity.ConcentrationGoal;
 import com.fivlo.fivlo_backend.domain.pomodoro.entity.PomodoroGoal;
 import com.fivlo.fivlo_backend.domain.pomodoro.entity.PomodoroSession;
+import com.fivlo.fivlo_backend.domain.pomodoro.repository.ConcentrationGoalRepository;
 import com.fivlo.fivlo_backend.domain.pomodoro.repository.PomodoroGoalRepository;
 import com.fivlo.fivlo_backend.domain.pomodoro.repository.PomodoroSessionRepository;
 import com.fivlo.fivlo_backend.domain.pomodoro.dto.CoinByPomodoroSessionResponse;
@@ -25,6 +27,7 @@ public class PomodoroService {
 
     private final PomodoroSessionRepository pomodoroSessionRepository;
     private final PomodoroGoalRepository pomodoroGoalRepository;
+    private final ConcentrationGoalRepository concentrationGoalRepository;
     private final UserRepository userRepository;
     private final CoinTransactionService coinTransactionService;
 
@@ -87,12 +90,26 @@ public class PomodoroService {
 
     @Transactional
     public PomodoroSessionCreateResponse createSession(Long id, @Valid PomodoroSessionCreateRequest dto) {
-        // 포모도로 세션 생성
+        // 사용자 조회
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new NoSuchElementException("사용자를 찾을 수 없습니다."));
+
+        // 포모도로 목표 조회
+        PomodoroGoal pomodoroGoal = pomodoroGoalRepository.findById(dto.id())
+                .orElseThrow(() -> new NoSuchElementException("해당 목표를 찾을 수 없습니다."));
+
+        // D-Day 목표 조회 (선택사항)
+        ConcentrationGoal concentrationGoal = null;
+        if (dto.concentrationGoalId() != null) {
+            concentrationGoal = concentrationGoalRepository.findByUserAndId(user, dto.concentrationGoalId())
+                    .orElseThrow(() -> new NoSuchElementException("해당 D-Day 목표를 찾을 수 없습니다."));
+        }
+
+        // 포모도로 세션 생성 (D-Day 목표와 연결 가능)
         PomodoroSession session = PomodoroSession.builder()
-                .user(userRepository.findById(id)
-                        .orElseThrow(() -> new NoSuchElementException("사용자를 찾을 수 없습니다.")))
-                .pomodoroGoal(pomodoroGoalRepository.findById(dto.id())
-                        .orElseThrow(() -> new NoSuchElementException("해당 목표를 찾을 수 없습니다.")))
+                .user(user)
+                .pomodoroGoal(pomodoroGoal)
+                .concentrationGoal(concentrationGoal)  // D-Day 목표와 연결
                 .build();
         pomodoroSessionRepository.save(session);
 

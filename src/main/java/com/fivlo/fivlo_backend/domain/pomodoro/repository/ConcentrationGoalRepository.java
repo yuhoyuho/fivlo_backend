@@ -19,10 +19,18 @@ public interface ConcentrationGoalRepository extends JpaRepository<Concentration
     List<ConcentrationGoal> findByUserOrderByCreatedAtDesc(@Param("user") User user);
 
     /**
-     * 특정 사용자의 활성 집중 목표 조회 (현재 진행 중인 목표)
+     * 특정 사용자의 오늘 목표 조회 (하루 단위 목표)
      */
     @Query("SELECT c FROM ConcentrationGoal c WHERE c.user = :user " +
-           "AND :currentDate >= c.startDate AND :currentDate <= c.endDate " +
+           "AND c.targetDate = :targetDate " +
+           "ORDER BY c.createdAt DESC")
+    List<ConcentrationGoal> findByUserAndTargetDate(@Param("user") User user, @Param("targetDate") LocalDate targetDate);
+
+    /**
+     * 특정 사용자의 활성 집중 목표 조회 (오늘이 목표 날짜인 목표들)
+     */
+    @Query("SELECT c FROM ConcentrationGoal c WHERE c.user = :user " +
+           "AND c.targetDate = :currentDate " +
            "ORDER BY c.createdAt DESC")
     List<ConcentrationGoal> findActiveGoalsByUser(@Param("user") User user, @Param("currentDate") LocalDate currentDate);
 
@@ -33,10 +41,10 @@ public interface ConcentrationGoalRepository extends JpaRepository<Concentration
     Optional<ConcentrationGoal> findByUserAndId(@Param("user") User user, @Param("goalId") Long goalId);
 
     /**
-     * 특정 사용자의 완료된 집중 목표 조회
+     * 특정 사용자의 완료된 집중 목표 조회 (목표 날짜가 지난 목표들)
      */
     @Query("SELECT c FROM ConcentrationGoal c WHERE c.user = :user " +
-           "AND c.endDate < :currentDate " +
-           "ORDER BY c.endDate DESC")
+           "AND c.targetDate < :currentDate " +
+           "ORDER BY c.targetDate DESC")
     List<ConcentrationGoal> findCompletedGoalsByUser(@Param("user") User user, @Param("currentDate") LocalDate currentDate);
 }

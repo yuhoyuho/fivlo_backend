@@ -814,45 +814,42 @@ public class FocusAnalysisService {
     }
 
     /**
-     * API 34: D-Day 목표 설정 (프리미엄 전용)
-     * D-Day 분석을 위한 새로운 목표를 설정합니다.
+     * API 34: D-Day 목표 설정 (프리미엄 전용, 하루 단위 목표)
+     * D-Day 분석을 위한 새로운 하루 단위 목표를 설정합니다.
      */
     @Transactional
     public ConcentrationGoalAnalysisResponse.ConcentrationGoalCreateResponse createConcentrationGoal(User user, ConcentrationGoalRequest request) {
-        log.info("D-Day 목표 설정 시작 - userId: {}, goalName: {}", user.getId(), request.name());
+        log.info("D-Day 목표 설정 시작 - userId: {}, goalName: {}, targetDate: {}",
+                user.getId(), request.name(), request.targetDate());
 
         // 프리미엄 사용자 확인
         if (!user.getIsPremium()) {
             throw new IllegalArgumentException("D-Day 목표 설정은 프리미엄 사용자만 이용 가능합니다.");
         }
 
-        // 목표 기간 유효성 검증
-        if (!request.isValidDateRange()) {
-            throw new IllegalArgumentException("목표 기간이 유효하지 않습니다. 종료일은 시작일보다 늦어야 합니다.");
-        }
-
-        if (request.isTooLong()) {
-            throw new IllegalArgumentException("목표 기간이 너무 깁니다. 최대 1년까지 설정 가능합니다.");
+        // 목표 시간 유효성 검증
+        if (request.targetFocusTimeInSeconds() < 60) {
+            throw new IllegalArgumentException("목표 집중 시간은 최소 60초(1분) 이상이어야 합니다.");
         }
 
         // 새로운 집중 목표 생성
         ConcentrationGoal goal = ConcentrationGoal.builder()
                 .user(user)
                 .name(request.name())
-                .startDate(request.startDate())
-                .endDate(request.endDate())
+                .targetDate(request.targetDate())
+                .targetFocusTimeInSeconds(request.targetFocusTimeInSeconds())
                 .build();
 
         ConcentrationGoal savedGoal = concentrationGoalRepository.save(goal);
 
-        log.info("D-Day 목표 설정 완료 - userId: {}, goalId: {}, goalName: {}", 
-                user.getId(), savedGoal.getId(), savedGoal.getName());
+        log.info("D-Day 목표 설정 완료 - userId: {}, goalId: {}, targetDate: {}, targetTime: {}초",
+                user.getId(), savedGoal.getId(), savedGoal.getTargetDate(), savedGoal.getTargetFocusTimeInSeconds());
 
         return ConcentrationGoalAnalysisResponse.ConcentrationGoalCreateResponse.success(savedGoal.getId());
     }
 
     /**
-     * API 신규: D-Day 목표 목록 조회 (프리미엄 전용)
+     * API 신규: D-Day 목표 목록 조회 (프리미엄 전용, 하루 단위 목표)
      * 사용자의 모든 D-Day 목표 목록을 조회합니다.
      */
     public ConcentrationGoalAnalysisResponse.ConcentrationGoalListResponse getConcentrationGoals(User user) {
@@ -871,11 +868,9 @@ public class FocusAnalysisService {
                 .map(goal -> ConcentrationGoalAnalysisResponse.ConcentrationGoalItem.builder()
                         .id(goal.getId())
                         .name(goal.getName())
-                        .startDate(goal.getStartDate().format(DATE_FORMATTER))
-                        .endDate(goal.getEndDate().format(DATE_FORMATTER))
-                        .totalDays(goal.getTotalDays())
-                        .elapsedDays(goal.getElapsedDays())
-                        .remainingDays(goal.getRemainingDays())
+                        .targetDate(goal.getTargetDate().format(DATE_FORMATTER))
+                        .targetFocusTime(goal.getTargetFocusTimeInSeconds())
+                        .daysUntilTarget(goal.getDaysUntilTarget())
                         .isActive(goal.isActive())
                         .isCompleted(goal.isCompleted())
                         .build())
@@ -889,8 +884,8 @@ public class FocusAnalysisService {
     }
 
     /**
-     * API 35: D-Day 목표 분석 조회 (프리미엄 전용)
-     * D-Day 목표에 대한 기간 동안의 집중도 분석 데이터를 조회합니다.
+     * API 35: D-Day 목표 분석 조회 (프리미엄 전용, 하루 단위 목표)
+     * D-Day 목표에 대한 집중도 분석 데이터 및 한 달 통계를 조회합니다.
      */
     public ConcentrationGoalAnalysisResponse getConcentrationGoalAnalysis(User user, Long goalId) {
         log.info("D-Day 목표 분석 조회 시작 - userId: {}, goalId: {}", user.getId(), goalId);
@@ -904,24 +899,38 @@ public class FocusAnalysisService {
         ConcentrationGoal goal = concentrationGoalRepository.findByUserAndId(user, goalId)
                 .orElseThrow(() -> new IllegalArgumentException("해당 D-Day 목표를 찾을 수 없습니다."));
 
-        // 목표 기간 동안의 포모도로 세션 조회
-        LocalDateTime startDateTime = goal.getStartDate().atStartOfDay();
-        LocalDateTime endDateTime = goal.getEndDate().plusDays(1).atStartOfDay();
-        
-        List<PomodoroSession> sessions = pomodoroSessionRepository.findByUserAndDateRangeWithGoal(
-                user, startDateTime, endDateTime);
+        // 목표 날짜의 포모도로 세션 조회
+        LocalDateTime startOfDay = goal.getTargetDate().atStartOfDay();
+        LocalDateTime nextDay = goal.getTargetDate().plusDays(1).atStartOfDay();
 
-        // 목표 정보 생성
-        ConcentrationGoalAnalysisResponse.GoalInfo goalInfo = createGoalInfo(goal, sessions);
+        List<PomodoroSession> targetDateSessions = pomodoroSessionRepository.findByUserAndDateWithGoal(
+                user, startOfDay, nextDay);
 
-        // 일별 달력 데이터 생성
-        List<ConcentrationGoalAnalysisResponse.DailyCalendar> dailyCalendar = createDailyCalendar(goal, sessions);
+        // 한 달 통계를 위한 세션 조회 (목표 날짜가 속한 달)
+        LocalDate monthStart = goal.getTargetDate().withDayOfMonth(1);
+        LocalDate monthEnd = goal.getTargetDate().with(TemporalAdjusters.lastDayOfMonth());
+        LocalDateTime monthStartDateTime = monthStart.atStartOfDay();
+        LocalDateTime monthEndDateTime = monthEnd.plusDays(1).atStartOfDay();
 
-        log.info("D-Day 목표 분석 조회 완료 - userId: {}, goalId: {}, 총 집중시간: {}초", 
-                user.getId(), goalId, goalInfo.getTotalFocusTime());
+        List<PomodoroSession> monthlySessions = pomodoroSessionRepository.findByUserAndMonthWithGoal(
+                user, monthStartDateTime, monthEndDateTime);
+
+        // 목표 정보 생성 (하루 단위)
+        ConcentrationGoalAnalysisResponse.GoalInfo goalInfo = createGoalInfoForSingleDay(goal, targetDateSessions);
+
+        // 한 달 통계 생성
+        ConcentrationGoalAnalysisResponse.MonthlyStats monthlyStats = createMonthlyStats(monthlySessions);
+
+        // 한 달 달력 데이터 생성
+        List<ConcentrationGoalAnalysisResponse.DailyCalendar> dailyCalendar = createMonthlyCalendar(
+                goal, monthlySessions, monthStart, monthEnd);
+
+        log.info("D-Day 목표 분석 조회 완료 - userId: {}, goalId: {}, 달성률: {}%",
+                user.getId(), goalId, goalInfo.getAchievementRate());
 
         return ConcentrationGoalAnalysisResponse.builder()
                 .goalInfo(goalInfo)
+                .monthlyStats(monthlyStats)
                 .dailyCalendar(dailyCalendar)
                 .build();
     }
@@ -1272,62 +1281,107 @@ public class FocusAnalysisService {
         }
     }
 
-    
+
     /**
-     * D-Day 목표 정보 생성
+     * D-Day 목표 정보 생성 (하루 단위)
      */
-    private ConcentrationGoalAnalysisResponse.GoalInfo createGoalInfo(ConcentrationGoal goal, List<PomodoroSession> sessions) {
-        int totalFocusTime = sessions.stream()
+    private ConcentrationGoalAnalysisResponse.GoalInfo createGoalInfoForSingleDay(ConcentrationGoal goal, List<PomodoroSession> sessions) {
+        int actualFocusTime = sessions.stream()
+                .filter(Objects::nonNull)
+                .filter(s -> s.getDurationInSeconds() != null)
                 .mapToInt(PomodoroSession::getDurationInSeconds)
                 .sum();
 
-        // 집중한 날 수 계산
-        long daysFocused = sessions.stream()
-                .collect(Collectors.groupingBy(session -> session.getCreatedAt().toLocalDate()))
-                .size();
+        int targetFocusTime = goal.getTargetFocusTimeInSeconds();
 
-        // 목표 달성률 계산 (경과 일수 대비 집중한 날 비율)
-        long elapsedDays = goal.getElapsedDays();
-        double achievementRate = elapsedDays > 0 ? (double) daysFocused / elapsedDays * 100 : 0.0;
+        // 목표 달성률 계산 (실제 집중시간 / 목표 집중시간 * 100)
+        double achievementRate = targetFocusTime > 0 ?
+                (double) actualFocusTime / targetFocusTime * 100 : 0.0;
+
+        // 목표 달성 여부 (달성률 >= 100%)
+        boolean isCompleted = achievementRate >= 100.0;
 
         return ConcentrationGoalAnalysisResponse.GoalInfo.builder()
                 .name(goal.getName())
-                .totalDays(goal.getTotalDays())
-                .daysFocused(daysFocused)
-                .totalFocusTime(totalFocusTime)
+                .targetDate(goal.getTargetDate().format(DATE_FORMATTER))
+                .targetFocusTime(targetFocusTime)
+                .actualFocusTime(actualFocusTime)
                 .achievementRate(Math.round(achievementRate * 10.0) / 10.0)
-                .remainingDays(goal.getRemainingDays())
+                .daysUntilTarget(goal.getDaysUntilTarget())
+                .isCompleted(isCompleted)
                 .build();
     }
 
     /**
-     * D-Day 일별 달력 데이터 생성
+     * 한 달 통계 생성
      */
-    private List<ConcentrationGoalAnalysisResponse.DailyCalendar> createDailyCalendar(ConcentrationGoal goal, List<PomodoroSession> sessions) {
+    private ConcentrationGoalAnalysisResponse.MonthlyStats createMonthlyStats(List<PomodoroSession> monthlySessions) {
+        int totalFocusTime = monthlySessions.stream()
+                .filter(Objects::nonNull)
+                .filter(s -> s.getDurationInSeconds() != null)
+                .mapToInt(PomodoroSession::getDurationInSeconds)
+                .sum();
+
+        // 집중한 날 수 계산
+        long totalFocusDays = monthlySessions.stream()
+                .filter(Objects::nonNull)
+                .filter(s -> s.getCreatedAt() != null)
+                .collect(Collectors.groupingBy(session -> session.getCreatedAt().toLocalDate()))
+                .size();
+
+        // 평균 집중 시간 계산
+        double averageDailyFocusTime = totalFocusDays > 0 ?
+                (double) totalFocusTime / totalFocusDays : 0.0;
+
+        return ConcentrationGoalAnalysisResponse.MonthlyStats.builder()
+                .totalFocusDays((int) totalFocusDays)
+                .totalFocusTime(totalFocusTime)
+                .averageDailyFocusTime(Math.round(averageDailyFocusTime * 10.0) / 10.0)
+                .build();
+    }
+
+    /**
+     * 한 달 달력 데이터 생성 (달성률 기반 오분이 이미지)
+     */
+    private List<ConcentrationGoalAnalysisResponse.DailyCalendar> createMonthlyCalendar(
+            ConcentrationGoal goal, List<PomodoroSession> monthlySessions,
+            LocalDate monthStart, LocalDate monthEnd) {
+
         // 날짜별 세션 그룹핑
-        Map<LocalDate, List<PomodoroSession>> sessionsByDate = sessions.stream()
+        Map<LocalDate, List<PomodoroSession>> sessionsByDate = monthlySessions.stream()
                 .filter(Objects::nonNull)
                 .filter(s -> s.getCreatedAt() != null)
                 .collect(Collectors.groupingBy(session -> session.getCreatedAt().toLocalDate()));
 
         List<ConcentrationGoalAnalysisResponse.DailyCalendar> calendar = new ArrayList<>();
 
-        // 목표 기간의 모든 날짜 처리
-        LocalDate currentDate = goal.getStartDate();
-        while (!currentDate.isAfter(goal.getEndDate())) {
+        // 한 달의 모든 날짜 처리
+        LocalDate currentDate = monthStart;
+        while (!currentDate.isAfter(monthEnd)) {
             List<PomodoroSession> daySessions = sessionsByDate.getOrDefault(currentDate, List.of());
-            
+
             int totalDuration = daySessions.stream()
                     .filter(Objects::nonNull)
                     .filter(s -> s.getDurationInSeconds() != null)
                     .mapToInt(PomodoroSession::getDurationInSeconds)
                     .sum();
 
-            String obooniImageType = ConcentrationGoalAnalysisResponse.determineObooniImageType(totalDuration);
+            // 목표 집중 시간 (목표 날짜와 동일한 경우만 목표 시간 적용, 그 외는 0)
+            int targetFocusTime = currentDate.equals(goal.getTargetDate()) ?
+                    goal.getTargetFocusTimeInSeconds() : 0;
+
+            // 달성률 계산 (목표가 있는 날만 계산)
+            double achievementRate = targetFocusTime > 0 ?
+                    (double) totalDuration / targetFocusTime * 100 : 0.0;
+
+            // 달성률 기반 오분이 이미지 타입 결정
+            String obooniImageType = ConcentrationGoalAnalysisResponse.determineObooniImageType(achievementRate);
 
             calendar.add(ConcentrationGoalAnalysisResponse.DailyCalendar.builder()
                     .date(currentDate.format(DATE_FORMATTER))
                     .durationInSeconds(totalDuration)
+                    .targetFocusTime(targetFocusTime)
+                    .achievementRate(Math.round(achievementRate * 10.0) / 10.0)
                     .obooniImageType(obooniImageType)
                     .build());
 

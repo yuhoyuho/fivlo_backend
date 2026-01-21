@@ -6,24 +6,34 @@ import lombok.Getter;
 import java.util.List;
 
 /**
- * API 35: D-Day 목표 분석 응답 DTO (프리미엄 전용)
+ * API 35: D-Day 목표 분석 응답 DTO (프리미엄 전용, 하루 단위 목표)
  */
 @Getter
 @Builder
 public class ConcentrationGoalAnalysisResponse {
 
     private GoalInfo goalInfo;
+    private MonthlyStats monthlyStats;        // 한 달 집중 통계 추가
     private List<DailyCalendar> dailyCalendar;
 
     @Getter
     @Builder
     public static class GoalInfo {
-        private String name;               // 목표 이름
-        private Long totalDays;            // 총 기간 (일)
-        private Long daysFocused;          // 집중한 일 수
-        private Integer totalFocusTime;    // 총 집중 시간 (초)
-        private Double achievementRate;    // 목표 달성률 (%)
-        private Long remainingDays;        // 남은 일수
+        private String name;                    // 목표 이름
+        private String targetDate;              // 목표 날짜 (YYYY-MM-DD)
+        private Integer targetFocusTime;        // 목표 집중 시간 (초)
+        private Integer actualFocusTime;        // 실제 집중 시간 (초)
+        private Double achievementRate;         // 목표 달성률 (%) = (실제/목표)*100
+        private Long daysUntilTarget;           // 목표까지 남은 일수 (D-Day)
+        private Boolean isCompleted;            // 목표 달성 여부 (달성률 >= 100%)
+    }
+
+    @Getter
+    @Builder
+    public static class MonthlyStats {
+        private Integer totalFocusDays;         // 한 달 동안 집중한 일수
+        private Integer totalFocusTime;         // 한 달 총 집중 시간 (초)
+        private Double averageDailyFocusTime;   // 한 달 평균 집중 시간 (초)
     }
 
     @Getter
@@ -31,7 +41,9 @@ public class ConcentrationGoalAnalysisResponse {
     public static class DailyCalendar {
         private String date;               // 날짜 (YYYY-MM-DD)
         private Integer durationInSeconds; // 해당 날짜의 총 집중 시간 (초)
-        private String obooniImageType;    // 오분이 이미지 타입 (GRAY_SAD, BROWN_NEUTRAL, RED_HAPPY)
+        private Integer targetFocusTime;        // 목표 집중 시간 (초)
+        private Double achievementRate;         // 해당 날짜 달성률 (%)
+        private String obooniImageType;         // 오분이 이미지 타입 (달성률 기반)
     }
 
     /**
@@ -42,7 +54,7 @@ public class ConcentrationGoalAnalysisResponse {
     public static class ConcentrationGoalCreateResponse {
         private Long id;                   // 생성된 목표 ID
         private String message;            // 응답 메시지
-        
+
         public static ConcentrationGoalCreateResponse success(Long goalId) {
             return ConcentrationGoalCreateResponse.builder()
                     .id(goalId)
@@ -54,34 +66,41 @@ public class ConcentrationGoalAnalysisResponse {
     /**
      * 비어있는 D-Day 분석 결과 생성
      */
-    public static ConcentrationGoalAnalysisResponse empty(String goalName) {
+    public static ConcentrationGoalAnalysisResponse empty(String goalName, String targetDate, Integer targetFocusTime) {
         return ConcentrationGoalAnalysisResponse.builder()
                 .goalInfo(GoalInfo.builder()
                         .name(goalName)
-                        .totalDays(0L)
-                        .daysFocused(0L)
-                        .totalFocusTime(0)
+                        .targetDate(targetDate)
+                        .targetFocusTime(targetFocusTime)
+                        .actualFocusTime(0)
                         .achievementRate(0.0)
-                        .remainingDays(0L)
+                        .daysUntilTarget(0L)
+                        .isCompleted(false)
+                        .build())
+                        .monthlyStats(MonthlyStats.builder()
+                        .totalFocusDays(0)
+                        .totalFocusTime(0)
+                        .averageDailyFocusTime(0.0)
                         .build())
                 .dailyCalendar(List.of())
                 .build();
     }
 
     /**
-     * 오분이 이미지 타입 결정 (집중 시간에 따라)
+     * 오분이 이미지 타입 결정 (달성률 기준)
+     *
+     * @param achievementRate 목표 달성률 (0~100+)
+     * @return 오분이 이미지 타입 (목표 없는 날은 null)
      */
-    public static String determineObooniImageType(int durationInSeconds) {
-        int durationInMinutes = durationInSeconds / 60;
-
-        if (durationInMinutes == 0) {
-            return "GRAY_SAD";        // 0분: 회색 슬픔 오분이
-        } else if (durationInMinutes < 60) {
-            return "GRAY_SAD";        // 0~1시간: 회색 슬픔 오분이
-        } else if (durationInMinutes < 120) {
-            return "BROWN_NEUTRAL";   // 1~2시간: 갈색 무뚝뚝 오분이
+    public static String determineObooniImageType(double achievementRate) {
+        if (achievementRate == 0.0) {
+            return null;                    // 목표 없는 날: 이미지 없음
+        } else if (achievementRate < 30.0) {
+            return "sad";                   // 0~30%: 슬픈 오분이
+        } else if (achievementRate < 70.0) {
+            return "default";               // 30~70%: 기본 오분이
         } else {
-            return "RED_HAPPY";       // 2시간+: 빨간색 기쁨 오분이
+            return "happy";                 // 70%+: 행복한 오분이
         }
     }
 
@@ -95,19 +114,17 @@ public class ConcentrationGoalAnalysisResponse {
     }
 
     /**
-     * D-Day 목표 목록 아이템 DTO
+     * D-Day 목표 목록 아이템 DTO (하루 단위)
      */
     @Getter
     @Builder
     public static class ConcentrationGoalItem {
-        private Long id;                   // 목표 ID
-        private String name;               // 목표 이름
-        private String startDate;          // 시작일 (YYYY-MM-DD)
-        private String endDate;            // 종료일 (YYYY-MM-DD)
-        private Long totalDays;            // 총 기간 (일)
-        private Long elapsedDays;          // 경과 일수
-        private Long remainingDays;        // 남은 일수
-        private Boolean isActive;          // 활성 상태 (현재 진행 중인지)
-        private Boolean isCompleted;       // 완료 상태 (종료일이 지났는지)
+        private Long id;                        // 목표 ID
+        private String name;                    // 목표 이름
+        private String targetDate;              // 목표 날짜 (YYYY-MM-DD)
+        private Integer targetFocusTime;        // 목표 집중 시간 (초)
+        private Long daysUntilTarget;           // 목표까지 남은 일수 (D-Day)
+        private Boolean isActive;               // 활성 상태 (오늘이 목표 날짜인지)
+        private Boolean isCompleted;            // 완료 상태 (목표 날짜가 지났는지)
     }
 }
