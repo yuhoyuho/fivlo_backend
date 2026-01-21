@@ -34,6 +34,10 @@ public class PomodoroSession {
     @JoinColumn(name = "pomodoro_goal_id", nullable = false)
     private PomodoroGoal pomodoroGoal;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "concentration_goal_id")
+    private ConcentrationGoal concentrationGoal;
+
     @Column(name = "duration_in_seconds", nullable = false)
     @Builder.Default
     private Integer durationInSeconds = 0;
@@ -47,11 +51,13 @@ public class PomodoroSession {
     private LocalDateTime createdAt;
 
     // ==================== 생성자 ====================
-    
+
     @Builder
-    public PomodoroSession(User user, PomodoroGoal pomodoroGoal, Integer durationInSeconds, Boolean isCycleCompleted) {
+    public PomodoroSession(User user, PomodoroGoal pomodoroGoal, ConcentrationGoal concentrationGoal,
+                          Integer durationInSeconds, Boolean isCycleCompleted) {
         this.user = user;
         this.pomodoroGoal = pomodoroGoal;
+        this.concentrationGoal = concentrationGoal;
         this.durationInSeconds = durationInSeconds;
         this.isCycleCompleted = isCycleCompleted != null ? isCycleCompleted : false;
     }
